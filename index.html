@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestionnaire Clients IPTV (LocalStorage) — Comptes & Login</title>
+  <style>
+    :root{
+      --bg:url('https://eagleiptv.cc/pntv/assets/img/login-bg/login-bg-27.jpg');
+      --glass: rgba(255,255,255,.10);
+      --border: rgba(255,255,255,.18);
+      --text: #f8fafc;
+      --muted:#cbd5e1;
+      --accent:#22d3a3; /* vert */
+      --danger:#ff5d5d; /* rouge */
+      --warning:#fbbf24;
+      --ink:#020617;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;color:var(--text);font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;background:#0b0f16}
+    body::before{content:'';position:fixed;inset:0;background-image:var(--bg);background-size:cover;background-position:center;filter:brightness(.55) saturate(1.05);z-index:-2}
+    body::after{content:'';position:fixed;inset:0;background:radial-gradient(800px 500px at 15% 10%, rgba(34,211,163,.18), transparent 60%),radial-gradient(700px 400px at 85% 90%, rgba(251,191,36,.12), transparent 60%),linear-gradient(to bottom, rgba(0,0,0,.3), rgba(0,0,0,.7));z-index:-1}
+
+    .container{max-width:1200px;margin:auto;padding:28px}
+    header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#149e79);display:grid;place-items:center;color:#042014;font-weight:900;box-shadow:0 10px 30px rgba(34,211,163,.35)}
+    h1{font-size:22px;margin:0}
+
+    .stats{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{padding:10px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--border);backdrop-filter:blur(8px);font-size:14px}
+    .ok{color:var(--accent);font-weight:700}
+    .low{color:var(--warning);font-weight:700}
+    .zero{color:var(--danger);font-weight:700}
+
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{grid-column:span 12;background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:16px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    @media(min-width:950px){.left{grid-column:span 4}.right{grid-column:span 8}}
+    .card h2{margin:0 0 10px 0;color:var(--accent);font-size:18px}
+
+    .row{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:680px){.row{grid-template-columns:repeat(2,1fr)}}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:12px;color:var(--muted)}
+    .input, select, input[type=date], input[type=password], input[type=number]{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(3,8,18,.65);color:var(--text);outline:none}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .btn{appearance:none;border:none;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer;color:#03120b;background:var(--accent);box-shadow:0 6px 18px rgba(34,211,163,.35);transition:transform .06s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.28)}
+    .btn-danger{background:var(--danger);color:#fff;box-shadow:0 6px 18px rgba(255,93,93,.35)}
+
+    .search{display:flex;gap:8px;align-items:center}
+    .search input{flex:1}
+
+    table{width:100%;border-collapse:collapse}
+    thead th{text-align:left;font-size:12px;color:var(--muted);padding:8px;border-bottom:1px dashed rgba(255,255,255,.18)}
+    tbody td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+    .paid{color:var(--accent);font-weight:700}
+    .unpaid{color:var(--danger);font-weight:700}
+
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+
+    /* ===== Auth overlay ===== */
+    .auth-wrap{position:fixed;inset:0;display:grid;place-items:center;padding:24px}
+    .auth-card{width:min(520px, 96vw);background:var(--glass);border:1px solid var(--border);border-radius:20px;padding:18px 18px 22px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.55)}
+    .tabs{display:flex;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    .tab{flex:1;padding:10px 12px;text-align:center;cursor:pointer}
+    .tab.active{background:rgba(0,0,0,.45);font-weight:700;color:var(--accent)}
+    .auth-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+    .auth-hint{font-size:12px;color:var(--muted);margin-top:8px}
+
+    .hidden{display:none !important}
+  </style>
+</head>
+<body>
+  <!-- ===== AUTH OVERLAY ===== -->
+  <div id="auth" class="auth-wrap hidden">
+    <div class="auth-card">
+      <div class="tabs">
+        <div id="tabLogin" class="tab active">Se connecter</div>
+        <div id="tabSignup" class="tab">Créer un compte</div>
+      </div>
+
+      <div id="loginForm">
+        <div class="field"><label>Nom d'utilisateur</label><input id="authUser" class="input" placeholder="ex: mohcine" /></div>
+        <div class="field"><label>Mot de passe</label><input id="authPass" type="password" class="input" placeholder="••••••" /></div>
+        <div class="auth-actions">
+          <button class="btn" id="btnLogin">Connexion</button>
+        </div>
+        <div class="auth-hint" id="authMsg"></div>
+      </div>
+
+      <div id="signupForm" class="hidden">
+        <div class="field"><label>Nom d'utilisateur</label><input id="suUser" class="input" placeholder="ex: papa" /></div>
+        <div class="field"><label>Mot de passe (min 6 caractères)</label><input id="suPass" type="password" class="input" /></div>
+        <div class="field"><label>Confirmer le mot de passe</label><input id="suPass2" type="password" class="input" /></div>
+        <div class="auth-actions">
+          <button class="btn" id="btnSignup">Créer le compte</button>
+        </div>
+        <div class="auth-hint" id="suMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container" id="app" class="hidden">
+    <header>
+      <div class="brand">
+        <div class="logo">IP</div>
+        <div>
+          <h1>Gestion Abonnements IPTV — LocalStorage</h1>
+          <div class="hint">Données stockées par <strong>compte</strong> dans votre navigateur</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="pill">Utilisateur: <strong id="who"></strong></div>
+        <div class="pill">Crédits restants: <span id="creditsLeft" class="ok">—</span></div>
+        <div class="pill">Coût par abo: <span id="costPer">12</span></div>
+        <div class="pill">Total clients: <span id="countClients">0</span></div>
+        <div class="pill">Total à payer serveur: <strong id="totalToPay" class="ok">0 DH</strong></div>
+        <div class="pill">Gain total: <strong id="gainTotal" class="ok">0 DH</strong></div>
+        <button class="btn-outline" id="btnLogout">Se déconnecter</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- Paramètres & Formulaire -->
+      <div class="card left">
+        <h2>Paramètres</h2>
+        <div class="field">
+          <label>Crédits disponibles</label>
+          <input id="inputCredits" class="input" type="number" min="0" step="1" placeholder="ex: 500" />
+          <div class="hint">Sauvegardé automatiquement (par utilisateur).</div>
+        </div>
+        <div class="field">
+          <label>Coût par abonnement (crédits)</label>
+          <input id="inputCost" class="input" type="number" min="1" step="1" value="12" />
+        </div>
+        <div class="field">
+          <label>Prix d'achat par code 1 an (DH)</label>
+          <input id="inputPrice" class="input" type="number" min="0" step="1" value="60" />
+        </div>
+        <div class="field">
+          <label>Prix de vente par défaut (DH)</label>
+          <input id="inputSale" class="input" type="number" min="0" step="1" value="300" />
+        </div>
+        <div class="actions">
+          <button class="btn-outline" id="btnExport">Exporter JSON</button>
+          <input type="file" id="fileImport" accept="application/json" style="display:none" />
+          <button class="btn-outline" id="btnImport">Importer JSON</button>
+          <button class="btn-danger" id="btnReset">Tout réinitialiser (compte)</button>
+        </div>
+
+        <h2 style="margin-top:16px">Ajouter un client</h2>
+        <div class="row">
+          <div class="field">
+            <label>Nom</label>
+            <input id="name" class="input" placeholder="ex: Yassine" />
+          </div>
+          <div class="field">
+            <label>Username / Code</label>
+            <input id="username" class="input" placeholder="ex: yassine_123" />
+          </div>
+          <div class="field">
+            <label>Date de début</label>
+            <input id="start" class="input" type="date" />
+          </div>
+          <div class="field">
+            <label>Type d'abonnement</label>
+            <select id="type">
+              <option value="1y" selected>1 an</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Prix de vente (DH)</label>
+            <input id="sale" class="input" type="number" min="0" step="1" placeholder="ex: 300" />
+          </div>
+        </div>
+        <button class="btn" id="btnAdd">+ Ajouter le client</button>
+        <div class="hint" id="addMsg"></div>
+      </div>
+
+      <!-- Liste des clients -->
+      <div class="card right">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <h2>Liste des clients</h2>
+          <div class="search">
+            <input id="search" class="input" placeholder="Rechercher nom / username / code…" />
+            <button class="btn-outline" id="btnClear">Effacer</button>
+          </div>
+        </div>
+        <div style="overflow:auto;max-height:62vh;border-radius:12px;border:1px solid rgba(255,255,255,.08);margin-top:8px">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nom</th>
+                <th>Username/Code</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Type</th>
+                <th>Paiement</th>
+                <th>Achat (DH)</th>
+                <th>Vente (DH)</th>
+                <th>Profit (DH)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ======= LocalStorage Keys (global) =======
+    const LS_ACCOUNTS = 'iptv_accounts_v1'; // [{user, passHash, createdAt}]
+    const LS_CURRENT  = 'iptv_current_user_v1';
+
+    // ======= Per-user key helper =======
+    const k = (base, user)=> `${base}__${user}`;
+
+    // ======= Helpers =======
+    const $ = (q)=> document.querySelector(q);
+    const formatDate = (d)=> new Date(d).toLocaleDateString('fr-FR');
+    const escapeHtml = (s)=> String(s||'').replace(/[&<>\"]/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
+    const toHex = (buf)=> [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    async function sha256(str){ const enc = new TextEncoder().encode(str); const hash = await crypto.subtle.digest('SHA-256', enc); return toHex(hash); }
+
+    // ======= App State =======
+    const state = { user: null, clients: [], credits: 500, cost: 12, price: 60, saleDefault: 300, search: '' };
+
+    function userKeys(){
+      if(!state.user) return {};
+      return {
+        LS_CLIENTS: k('iptv_clients_v4', state.user),
+        LS_CREDITS: k('iptv_credits_v4', state.user),
+        LS_COST:    k('iptv_cost_v4', state.user),
+        LS_PRICE:   k('iptv_price_v4', state.user),
+        LS_SALE:    k('iptv_sale_default_v4', state.user),
+      };
+    }
+
+    function loadUserData(){
+      const keys = userKeys(); if(!keys.LS_CLIENTS) return;
+      try{ state.clients = JSON.parse(localStorage.getItem(keys.LS_CLIENTS) || '[]'); }catch{ state.clients = [] }
+      state.credits = parseInt(localStorage.getItem(keys.LS_CREDITS) || '500', 10);
+      state.cost    = parseInt(localStorage.getItem(keys.LS_COST)    || '12', 10);
+      state.price   = parseInt(localStorage.getItem(keys.LS_PRICE)   || '60', 10);
+      state.saleDefault = parseInt(localStorage.getItem(keys.LS_SALE) || '300', 10);
+      $('#inputCredits').value = state.credits;
+      $('#inputCost').value = state.cost;
+      $('#inputPrice').value = state.price;
+      $('#inputSale').value = state.saleDefault;
+      $('#who').textContent = state.user;
+    }
+    function saveUserData(){
+      const keys = userKeys(); if(!keys.LS_CLIENTS) return;
+      localStorage.setItem(keys.LS_CLIENTS, JSON.stringify(state.clients));
+      localStorage.setItem(keys.LS_CREDITS, String(state.credits));
+      localStorage.setItem(keys.LS_COST,    String(state.cost));
+      localStorage.setItem(keys.LS_PRICE,   String(state.price));
+      localStorage.setItem(keys.LS_SALE,    String(state.saleDefault));
+    }
+
+    function badgeClass(v){ if(v <= 0) return 'zero'; if(v <= state.cost * 2) return 'low'; return 'ok'; }
+
+    function totals(){
+      const totalAchat = state.clients.reduce((s,c)=> s + (c.price ?? state.price), 0);
+      const totalVente = state.clients.reduce((s,c)=> s + (c.sale  ?? state.saleDefault), 0);
+      const totalProfit = totalVente - totalAchat;
+      return { totalAchat, totalVente, totalProfit };
+    }
+
+    function updateTotals(){
+      const { totalAchat, totalProfit } = totals();
+      // Tous avec la même couleur que Crédits restants
+      const leftEl = $('#creditsLeft');
+      const cls = badgeClass(state.credits);
+      leftEl.textContent = state.credits; leftEl.className = cls;
+      $('#costPer').textContent = state.cost;
+      $('#countClients').textContent = state.clients.length;
+
+      const payEl = $('#totalToPay'); payEl.textContent = `${totalAchat} DH`; payEl.className = cls;
+      const gainEl = $('#gainTotal'); gainEl.textContent = `${totalProfit} DH`; gainEl.className = cls;
+    }
+
+    function render(){
+      updateTotals();
+      const q = state.search.toLowerCase().trim();
+      const tbody = $('#tbody'); tbody.innerHTML = '';
+      const rows = state.clients
+        .map((c,i)=> ({...c, idx:i+1, achat:(c.price ?? state.price), vente:(c.sale ?? state.saleDefault)}))
+        .filter(c=> !q || [c.name, c.username, c.code].some(v=> (v||'').toLowerCase().includes(q)) );
+
+      if(rows.length===0){
+        const tr=document.createElement('tr');
+        const td=document.createElement('td'); td.colSpan=11; td.textContent='Aucun client.'; td.style.color='#cbd5e1'; td.style.padding='16px';
+        tr.appendChild(td); tbody.appendChild(tr);
+      } else {
+        for(const c of rows){
+          const profit = (c.vente - c.achat);
+          const tr=document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.idx}</td>
+            <td>${escapeHtml(c.name)}</td>
+            <td><span class="pill" style="padding:4px 8px">${escapeHtml(c.username||c.code||'—')}</span></td>
+            <td>${formatDate(c.start)}</td>
+            <td>${formatDate(c.end)}</td>
+            <td>${c.type==='1y'?'1 an':escapeHtml(c.type)}</td>
+            <td class="${c.paid==='yes'?'paid':'unpaid'}">${c.paid==='yes'?'Payé':'Non Payé'}</td>
+            <td>${c.achat} DH</td>
+            <td>${c.vente} DH</td>
+            <td>${profit} DH</td>
+            <td>
+              <button class="btn-outline" data-act="toggle" data-id="${c.id}">${c.paid==='yes'?'Marquer Non Payé':'Marquer Payé'}</button>
+              <button class="btn-danger" data-act="del" data-id="${c.id}">Supprimer</button>
+            </td>`;
+          tbody.appendChild(tr);
+        }
+      }
+      saveUserData();
+    }
+
+    function flash(msg, isErr=false){ const el = $('#addMsg'); el.textContent = msg; el.style.color = isErr ? 'var(--danger)' : 'var(--accent)'; setTimeout(()=> el.textContent='', 3000); }
+
+    // ======= Auth Logic =======
+    function showAuth(){ $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); }
+    function showApp(){ $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden'); }
+
+    function getAccounts(){ try{ return JSON.parse(localStorage.getItem(LS_ACCOUNTS) || '[]'); }catch{ return [] } }
+    function setAccounts(list){ localStorage.setItem(LS_ACCOUNTS, JSON.stringify(list)); }
+
+    async function login(user, pass){
+      const list = getAccounts(); const u = list.find(a=> a.user===user);
+      if(!u) throw new Error("Utilisateur introuvable");
+      const ph = await sha256(pass); if(u.passHash !== ph) throw new Error("Mot de passe incorrect");
+      localStorage.setItem(LS_CURRENT, user); state.user = user; loadUserData(); showApp(); render();
+    }
+    async function signup(user, pass, pass2){
+      if(!user || user.length<3) throw new Error('Nom d\'utilisateur trop court');
+      if(pass!==pass2) throw new Error('Les mots de passe ne correspondent pas');
+      if(!pass || pass.length<6) throw new Error('Mot de passe trop court');
+      const list = getAccounts(); if(list.some(a=> a.user===user)) throw new Error('Utilisateur déjà existant');
+      const ph = await sha256(pass); list.push({user, passHash: ph, createdAt: Date.now()}); setAccounts(list);
+      localStorage.setItem(LS_CURRENT, user); state.user = user; loadUserData(); showApp(); render();
+    }
+    function logout(){ localStorage.removeItem(LS_CURRENT); state.user=null; showAuth(); }
+
+    // ======= UI Events =======
+    document.addEventListener('click', (e)=>{
+      const t = e.target;
+      if(t.id==='btnAdd') return addClient();
+      if(t.id==='btnReset'){
+        if(confirm('Tout supprimer pour ce compte ?')){
+          const keys = userKeys();
+          localStorage.removeItem(keys.LS_CLIENTS);
+          localStorage.removeItem(keys.LS_CREDITS);
+          localStorage.removeItem(keys.LS_COST);
+          localStorage.removeItem(keys.LS_PRICE);
+          localStorage.removeItem(keys.LS_SALE);
+          loadUserData(); render(); flash('Réinitialisé.');
+        }
+      }
+      if(t.id==='btnExport'){
+        const data = { user: state.user, clients: state.clients, credits: state.credits, cost: state.cost, price: state.price, saleDefault: state.saleDefault };
+        const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `iptv_${state.user}_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+      }
+      if(t.id==='btnImport') $('#fileImport').click();
+      if(t.dataset && t.dataset.act==='del'){
+        const id = t.dataset.id; const i = state.clients.findIndex(c=> c.id===id);
+        if(i>-1 && confirm('Supprimer ce client ?')){ state.credits += state.cost; state.clients.splice(i,1); render(); }
+      }
+      if(t.dataset && t.dataset.act==='toggle'){
+        const id = t.dataset.id; const c = state.clients.find(x=> x.id===id);
+        if(c){ c.paid = c.paid==='yes'?'no':'yes'; render(); }
+      }
+      if(t.id==='btnClear'){ $('#search').value=''; state.search=''; render(); }
+      if(t.id==='btnLogout') logout();
+      if(t.id==='tabLogin'){ $('#tabLogin').classList.add('active'); $('#tabSignup').classList.remove('active'); $('#loginForm').classList.remove('hidden'); $('#signupForm').classList.add('hidden'); }
+      if(t.id==='tabSignup'){ $('#tabSignup').classList.add('active'); $('#tabLogin').classList.remove('active'); $('#signupForm').classList.remove('hidden'); $('#loginForm').classList.add('hidden'); }
+      if(t.id==='btnLogin') (async()=>{ $('#authMsg').textContent=''; try{ await login($('#authUser').value.trim(), $('#authPass').value); }catch(err){ $('#authMsg').textContent = err.message; } })();
+      if(t.id==='btnSignup') (async()=>{ $('#suMsg').textContent=''; try{ await signup($('#suUser').value.trim(), $('#suPass').value, $('#suPass2').value); }catch(err){ $('#suMsg').textContent = err.message; } })();
+    });
+
+    $('#fileImport').addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return; const reader = new FileReader();
+      reader.onload = ()=>{ try{ const data = JSON.parse(reader.result);
+          if(data.user && data.user!==state.user) return alert('Ce backup est pour un autre utilisateur.');
+          if(Array.isArray(data.clients)) state.clients = data.clients; else throw new Error('format');
+          if(typeof data.credits==='number') state.credits = data.credits;
+          if(typeof data.cost==='number') state.cost = data.cost;
+          if(typeof data.price==='number') state.price = data.price;
+          if(typeof data.saleDefault==='number') state.saleDefault = data.saleDefault;
+          $('#inputCredits').value = state.credits; $('#inputCost').value = state.cost; $('#inputPrice').value = state.price; $('#inputSale').value = state.saleDefault; render(); flash('Import réussi');
+        }catch{ alert('Fichier invalide'); } };
+      reader.readAsText(f);
+    });
+
+    // Inputs live (per-user)
+    $('#inputCredits').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.credits = isNaN(v)?0:v; updateTotals(); saveUserData(); });
+    $('#inputCost').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'12',10); state.cost = Math.max(1, isNaN(v)?12:v); updateTotals(); saveUserData(); });
+    $('#inputPrice').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'60',10); state.price = Math.max(0, isNaN(v)?60:v); updateTotals(); saveUserData(); render(); });
+    $('#inputSale').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'300',10); state.saleDefault = Math.max(0, isNaN(v)?300:v); updateTotals(); saveUserData(); render(); });
+    $('#search').addEventListener('input', (e)=>{ state.search = e.target.value; render(); });
+
+    function addClient(){
+      const name = $('#name').value.trim();
+      const username = $('#username').value.trim();
+      const start = $('#start').value;
+      const type = $('#type').value;
+      const sale = parseInt($('#sale').value || state.saleDefault, 10);
+      if(!name || !username || !start){ return flash('Remplissez tous les champs', true); }
+      if(state.credits < state.cost){ return flash(`Crédits insuffisants. Restants: ${state.credits}, requis: ${state.cost}.`, true); }
+      const client = { id: crypto.randomUUID(), name, username, code: username, start, end: computeEnd(start,type), type, paid:'no', price: state.price, sale: isNaN(sale)?state.saleDefault:sale };
+      state.clients.unshift(client);
+      state.credits -= state.cost; // décrémenter les crédits
+      $('#name').value=''; $('#username').value=''; $('#start').value=''; $('#type').value='1y'; $('#sale').value='';
+      render();
+      flash('Client ajouté. Crédits & totaux mis à jour.');
+    }
+
+    function computeEnd(start, type){ const d = new Date(start); if(type==='1y') d.setFullYear(d.getFullYear()+1); return d.toISOString().slice(0,10); }
+
+    // ======= Boot =======
+    (function init(){
+      const current = localStorage.getItem(LS_CURRENT);
+      if(current){ state.user = current; loadUserData(); showApp(); }
+      else { showAuth(); }
+      const today = new Date().toISOString().slice(0,10); const start = document.getElementById('start'); if(start) start.value = today;
+      if(state.user) render();
+    })();
+  </script>
+</body>
+</html>
