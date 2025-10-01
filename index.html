@@ -1,0 +1,2588 @@
+<!-- FIXED V2: single addClient() call -->
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Gestionnaire Clients IPTV  </title>
+<style>
+    :root{
+      --bg:url('https://eagleiptv.cc/pntv/assets/img/login-bg/login-bg-27.jpg');
+      --glass: rgba(255,255,255,.10);
+      --border: rgba(255,255,255,.18);
+      --text: #f8fafc;
+      --muted:#cbd5e1;
+      --accent:#22d3a3; /* vert */
+      --danger:#ff5d5d; /* rouge */
+      --warning:#fbbf24;
+      --ink:#020617;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;color:var(--text);font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;background:#0b0f16}
+    body::before{content:'';position:fixed;inset:0;background-image:var(--bg);background-size:cover;background-position:center;filter:brightness(.55) saturate(1.05);z-index:-2}
+    body::after{content:'';position:fixed;inset:0;background:radial-gradient(800px 500px at 15% 10%, rgba(34,211,163,.18), transparent 60%),radial-gradient(700px 400px at 85% 90%, rgba(251,191,36,.12), transparent 60%),linear-gradient(to bottom, rgba(0,0,0,.3), rgba(0,0,0,.7));z-index:-1}
+
+    .container{max-width:100%;margin:0 auto;padding:16px 24px}
+    header{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:120px;height:120px;display:grid;place-items:center}
+    .logo img{width:120px;height:auto;filter: drop-shadow(0 10px 30px rgba(34,211,163,.35))}
+    h1{font-size:22px;margin:0}
+
+    .stats{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{padding:10px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--border);backdrop-filter:blur(8px);font-size:14px}
+    .ok{color:var(--accent);font-weight:700}
+    .low{color:var(--warning);font-weight:700}
+    .zero{color:var(--danger);font-weight:700}
+
+    /* Logout bouton (rouge, coin droit) */
+    #btnLogout{
+      background:var(--danger); color:#fff; font-weight:700;
+      padding:10px 14px; border-radius:8px; border:none; cursor:pointer;
+      box-shadow:0 6px 18px rgba(255,93,93,.35); transition:all .2s ease;
+    }
+    #btnLogout:hover{ background:#ff7676; }
+    .logout-col{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-bottom:6px}
+    #who{ color:#f59e0b; font-weight:800; font-size:15px; }
+    #btnLogout:hover{ background:#ff7676; }
+
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{grid-column:span 12;background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:16px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    @media(min-width:950px){.left{grid-column:span 4}.right{grid-column:span 8}}
+    .card h2{margin:0 0 10px 0;color:var(--accent);font-size:18px}
+
+    .row{display:grid;grid-template-columns:1fr;gap:10px}
+    @media(min-width:680px){.row{grid-template-columns:repeat(2,1fr)}}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:12px;color:var(--muted)}
+    .input, select, input[type=date], input[type=password], input[type=number]{padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(3,8,18,.65);color:var(--text);outline:none}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .btn{appearance:none;border:none;padding:12px 14px;border-radius:12px;font-weight:700;cursor:pointer;color:#03120b;background:var(--accent);box-shadow:0 6px 18px rgba(34,211,163,.35);transition:transform .06s ease}
+    .btn:active{transform:translateY(1px)}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.28)}
+    .btn-danger{background:var(--danger);color:#fff;box-shadow:0 6px 18px rgba(255,93,93,.35)}
+
+    .search{display:flex;gap:8px;align-items:center}
+    .search input{flex:1}
+
+    table{width:100%;border-collapse:collapse}
+    thead th{text-align:left;font-size:12px;color:var(--muted);padding:8px;border-bottom:1px dashed rgba(255,255,255,.18)}
+    tbody td{padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);font-size:14px}
+    tbody tr:hover{background:rgba(255,255,255,.04)}
+    .paid{color:var(--accent);font-weight:700}
+    .unpaid{color:var(--danger);font-weight:700}
+
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+
+    /* AUTH */
+    .auth-wrap{position:fixed;inset:0;display:grid;place-items:center;padding:24px}
+    .auth-card{width:min(520px, 96vw);background:var(--glass);border:1px solid var(--border);border-radius:20px;padding:18px 18px 22px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.55)}
+    .tabs{display:flex;background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px}
+    .tab{flex:1;padding:10px 12px;text-align:center;cursor:pointer}
+    .tab.active{background:rgba(0,0,0,.45);font-weight:700;color:var(--accent)}
+    .auth-actions{display:flex;gap:8px;justify-content:center;margin-top:10px}
+    .auth-hint{font-size:12px;color:var(--muted);margin-top:8px}
+
+    .hidden{display:none !important}
+  
+    /* Tools button (blue) and dropdown */
+    .btn-blue{
+      appearance:none;border:none;padding:10px 14px;border-radius:999px;font-weight:800;cursor:pointer;
+      color:#fff;background:#3b82f6; /* blue */ box-shadow:0 10px 30px rgba(59,130,246,.35);
+      border:1px solid rgba(59,130,246,.5);
+    }
+    .tools-wrap{ position:relative; }
+    .tools-menu{
+      position:absolute; right:0; top:110%; min-width:260px;
+      background:rgba(3,8,18,.9); border:1px solid var(--border); border-radius:12px; padding:10px;
+      box-shadow:0 20px 50px rgba(0,0,0,.55); backdrop-filter: blur(10px); display:none; z-index:3000;
+    }
+    .tools-menu .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+    .tools-menu .btn-outline, .tools-menu .btn-danger{ padding:10px 12px; border-radius:10px; }
+    .hidden{display:none !important}
+    .icon-btn{
+      appearance:none;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);
+      color:var(--text); border-radius:10px; padding:8px 10px; cursor:pointer;
+      transition:transform .06s ease, background .2s ease;
+    }
+    .icon-btn:active{ transform: translateY(1px); }
+
+  
+    .btn-yellow{
+      appearance:none;border:none;padding:10px 14px;border-radius:999px;font-weight:800;cursor:pointer;
+      color:#000;background:#facc15; /* yellow */ box-shadow:0 10px 30px rgba(250,204,21,.35);
+      border:1px solid rgba(250,204,21,.5);
+    }
+    #clientForm{ display:none; margin-top:16px; }
+
+  
+/* === Add Client (yellow) === */
+.btn-yellow{
+  appearance:none;border:1px solid rgba(234,179,8,.6);
+  background:#facc15;color:#111;font-weight:800;
+  padding:10px 14px;border-radius:999px;cursor:pointer;
+  box-shadow:0 10px 30px rgba(250,204,21,.35);
+}
+/* Modal */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:none;align-items:center;justify-content:center;z-index:2000;
+}
+.modal{
+  width:min(560px,92vw);background:#0b1220;border:1px solid var(--border);
+  border-radius:16px;padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+.modal .row{display:grid;grid-template-columns:1fr 1fr; gap:10px}
+.modal .field{display:flex;flex-direction:column;gap:6px}
+.modal h3{margin:0 0 8px 0}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+@media(max-width:720px){ .modal .row{grid-template-columns:1fr} }
+
+
+/* === Couleurs colonnes Achat/Vente/Profit === */
+td.col-achat {
+  color: #facc15; /* jaune */
+  font-weight: 700;
+}
+td.col-vente {
+  color: #3b82f6; /* bleu */
+  font-weight: 700;
+}
+td.col-profit {
+  color: #22c55e; /* vert */
+  font-weight: 700;
+}
+
+
+/* === Total à payer serveur en JAUNE === */
+#totalToPay {
+  color: #facc15 !important; /* jaune */
+  font-weight: 800;
+}
+
+
+/* === Abonnement 1 an en mauve === */
+td.col-type-1y {
+  color: #a855f7; /* mauve */
+  font-weight: 700;
+}
+
+
+/* === Username/Code en jaune === */
+td.col-username {
+  color: #facc15; /* jaune */
+  font-weight: 700;
+}
+
+
+/* === Revamped Monthly Panel (design zwin) === */
+.monthly-panel{
+  position: fixed; right: 24px; top: 88px; width: min(420px, 92vw);
+  background: radial-gradient(120% 100% at 0% 0%, rgba(34,211,163,.10), transparent 50%),
+              radial-gradient(120% 100% at 100% 100%, rgba(99,102,241,.12), transparent 50%),
+              rgba(3,8,18,.78);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter: blur(12px);
+  z-index: 1200;
+}
+.monthly-panel header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 6px 8px 10px 8px; border-bottom: 1px dashed rgba(255,255,255,.12);
+}
+.monthly-panel h3{
+  margin: 0; font-size: 16px;
+  background: linear-gradient(90deg, #22d3a3, #60a5fa, #a78bfa);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-weight: 800; letter-spacing: .3px;
+  display:flex; align-items:center; gap:8px;
+}
+.monthly-panel h3::before{
+  content: "📈";
+}
+.monthly-close{
+  appearance:none; border:none; background:rgba(255,255,255,.06);
+  color:#e5e7eb; width: 28px; height: 28px; border-radius: 8px;
+  cursor:pointer; transition: transform .08s ease, background .2s ease, color .2s ease;
+}
+.monthly-close:hover{ background: rgba(255,255,255,.12); color:#fff; }
+.monthly-close:active{ transform: translateY(1px); }
+
+.monthly-summary{
+  display:flex; align-items:center; justify-content:space-between;
+  background: linear-gradient(180deg, rgba(34,211,163,.18), rgba(34,211,163,.10));
+  border:1px solid rgba(34,211,163,.35);
+  padding:10px 12px; border-radius: 12px; margin: 10px 4px 8px 4px;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.08);
+}
+.monthly-summary .title{
+  font-size: 13px; color:#cbd5e1; font-weight:600;
+}
+.monthly-summary .value{
+  font-weight:900; font-size:16px; color:#22d3a3;
+}
+
+.month-list{
+  list-style:none; margin: 4px 0 0 0; padding:0; max-height: 56vh;
+  overflow:auto; border-radius: 12px;
+}
+.month-item{
+  display:grid; grid-template-columns: 1fr auto; align-items:center;
+  gap:8px; padding: 10px 10px;
+  border-bottom: 1px dashed rgba(255,255,255,.09);
+  transition: background .2s ease, transform .06s ease;
+}
+.month-item:hover{ background: rgba(255,255,255,.05); }
+.month-item:active{ transform: translateY(1px); }
+.m-name{
+  color:#e5e7eb; font-weight:700; letter-spacing:.2px;
+}
+.m-amt{
+  font-weight:900;
+}
+.m-amt.pos{ color: #22c55e; }  /* green */
+.m-amt.neg{ color: #ff5d5d; }  /* red */
+
+.month-list::-webkit-scrollbar{ width:10px }
+.month-list::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, rgba(96,165,250,.5), rgba(167,139,250,.5));
+  border-radius:999px; border:2px solid rgba(3,8,18,.6);
+}
+.month-list::-webkit-scrollbar-track{ background: transparent; }
+
+.monthly-panel .hint{
+  margin-top:8px; font-size:12px; color:#94a3b8;
+}
+
+</style>
+<style>
+    /* New Monthly Earning button & panel (non-invasive) */
+    #gainMonthly{ display:none !important; } /* hide original text value */
+    .pill-btn{
+      padding:10px 14px;border-radius:999px;background:linear-gradient(180deg, rgba(34,211,163,.95), rgba(34,211,163,.8));
+      border:1px solid rgba(34,211,163,.45); color:#03120b; font-weight:800; cursor:pointer;
+      box-shadow:0 10px 30px rgba(34,211,163,.35), inset 0 -2px 0 rgba(0,0,0,.08);
+      backdrop-filter:blur(8px); transition:transform .06s ease, filter .2s ease;
+      margin-left:8px;
+    }
+    .pill-btn:active{ transform: translateY(1px); }
+    .monthly-panel{
+      position:fixed; right:24px; top:88px; width:min(360px, 92vw);
+      background:rgba(3,8,18,.75); border:1px solid var(--border); border-radius:16px; padding:14px;
+      box-shadow:0 20px 50px rgba(0,0,0,.55); backdrop-filter: blur(10px); z-index:1000;
+      display:none;
+    }
+    .monthly-panel header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px }
+    .monthly-panel h3{ margin:0; font-size:16px; color:var(--accent) }
+    .monthly-close{
+      appearance:none; border:none; background:transparent; color:var(--muted); font-size:18px; cursor:pointer;
+    }
+    .month-list{ list-style:none; margin:0; padding:0; max-height:50vh; overflow:auto }
+    .month-item{ display:flex; align-items:center; justify-content:space-between; padding:10px 8px;
+      border-bottom:1px dotted rgba(255,255,255,.12); font-size:14px }
+    .month-item .m-name{ color:#e5e7eb; font-weight:600 }
+    .month-item .m-amt{ color:var(--accent); font-weight:800 }
+    .hint{ margin-top:8px; font-size:12px; color:var(--muted) }
+  </style>
+<style>
+/* Variant C: Minimal Bar */
+.stats-card{grid-column:1 / -1; padding:10px 0; background:transparent; border:none; box-shadow:none}
+.stats-card > h3{display:none}
+.stats-card .stats{display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; padding:4px 0; border-top:1px solid rgba(255,255,255,.08); border-bottom:1px solid rgba(255,255,255,.08)}
+.stats-card .pill{background:transparent; border:1px solid rgba(255,255,255,.12); padding:6px 10px; border-radius:999px; box-shadow:none}
+.stats-card .pill-btn{border-radius:999px; padding:8px 12px}
+</style>
+<style>
+/* Dates color coding */
+.date-start{ color: var(--accent); font-weight: 700; } /* green */
+.date-end{ color: var(--danger); font-weight: 700; }   /* red */
+</style>
+<style>
+.card.right {
+  position: relative;
+  position: relative;
+  background: linear-gradient(to bottom right, rgba(3, 8, 18, 0.6), rgba(0, 0, 0, 0.6));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+.card.right:hover {
+  transform: scale(1.01);
+  border-color: var(--accent);
+}</style>
+<style>
+/* === Professional Header Styling === */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  background: rgba(3, 8, 18, 0.75);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+header .brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+header .logo img {
+  width: 120px;
+  height: auto;
+}
+header h1 {
+  font-size: 20px;
+  margin: 0;
+  color: var(--accent);
+}
+header .hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+header .tools-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+</style><style>
+/* Align logout-col to the far right */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.logout-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  margin-left: auto;
+  text-align: right;
+}
+</style><style>
+.client-id {
+  color: var(--accent);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+</style><style>
+/* === Zwin Button Effacer === */
+#btnClear {
+  padding: 10px 16px;
+  border-radius: 999px; /* rond pill */
+  background: linear-gradient(90deg, rgba(239,68,68,.9), rgba(239,68,68,.7));
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(239,68,68,.6);
+  box-shadow: 0 6px 18px rgba(239,68,68,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+#btnClear:hover {
+  background: linear-gradient(90deg, rgba(239,68,68,1), rgba(220,38,38,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 22px rgba(239,68,68,.55);
+}
+#btnClear:active {
+  transform: scale(0.97);
+}
+</style><style>
+/* === Zwin Design for Table Action Buttons === */
+button[data-act="toggle"] {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(59,130,246,.9), rgba(59,130,246,.7)); /* blue */
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(59,130,246,.6);
+  box-shadow: 0 6px 16px rgba(59,130,246,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+button[data-act="toggle"]:hover {
+  background: linear-gradient(90deg, rgba(59,130,246,1), rgba(37,99,235,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(59,130,246,.55);
+}
+button[data-act="toggle"]:active {
+  transform: scale(0.95);
+}
+
+button[data-act="del"] {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(239,68,68,.9), rgba(239,68,68,.7)); /* red */
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(239,68,68,.6);
+  box-shadow: 0 6px 16px rgba(239,68,68,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+button[data-act="del"]:hover {
+  background: linear-gradient(90deg, rgba(239,68,68,1), rgba(220,38,38,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(239,68,68,.55);
+}
+button[data-act="del"]:active {
+  transform: scale(0.95);
+}
+</style><style>
+@keyframes blink { 0%,50%,100%{opacity:1} 25%,75%{opacity:0} }
+.expired { color:#ff5d5d; font-weight:900; animation: blink 1s infinite; }
+</style>
+<style>
+#monthlyPanel{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.65);z-index:5000}
+#monthlyPanel .panel-content{background:linear-gradient(160deg,rgba(3,8,18,.95),rgba(15,23,42,.95));border:1px solid rgba(255,255,255,.15);border-radius:20px;width:min(480px,95vw);max-height:80vh;padding:20px;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6);backdrop-filter:blur(10px);animation:popupScale .25s ease}
+@keyframes popupScale{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+#monthlyPanel h3{margin:0 0 12px;font-size:18px;color:var(--accent);display:flex;justify-content:space-between;align-items:center}
+#monthlyPanel .month-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+</style>
+<style>
+.generic-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.65);z-index:6000}
+.generic-modal .gm-content{background:linear-gradient(160deg,rgba(3,8,18,.95),rgba(15,23,42,.95));border:1px solid rgba(255,255,255,.15);border-radius:20px;width:min(560px,95vw);max-height:80vh;padding:20px;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6);backdrop-filter:blur(10px);animation:popupScale .25s ease}
+.generic-modal .gm-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.generic-modal .gm-title{margin:0;font-size:18px;color:var(--accent);font-weight:800}
+.generic-modal .gm-close{appearance:none;border:none;background:rgba(255,255,255,.06);color:#e5e7eb;width:32px;height:32px;border-radius:10px;cursor:pointer}
+.generic-modal .gm-close:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-save{appearance:none;border:none;padding:10px 16px;border-radius:999px;font-weight:800;cursor:pointer;color:#000;background:#facc15;box-shadow:0 8px 22px rgba(250,204,21,.4);border:1px solid rgba(250,204,21,.5);transition:transform .08s ease,background .2s ease;font-size:15px;letter-spacing:.3px}
+.btn-save:hover{background:#fde047}.btn-save:active{transform:scale(.97)}
+.toast-success{display:none;background:linear-gradient(180deg,rgba(34,197,94,.15),rgba(34,197,94,.10));border:1px solid rgba(34,197,94,.45);color:#bbf7d0;padding:10px 14px;border-radius:12px;font-weight:800;letter-spacing:.3px;box-shadow:0 12px 30px rgba(0,0,0,.35),inset 0 -2px 0 rgba(0,0,0,.08);animation:slideUpFade .25s ease}
+@keyframes slideUpFade{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+.clients-count{margin:0 0 6px 0;font-size:15px;font-weight:600;color:#cbd5e1;text-align:right}
+.count-green{color:#22c55e;font-weight:900;font-size:16px}
+/* Paiement select */
+.pay-select{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.22);background:rgba(3,8,18,.65);color:var(--text);font-size:14px;outline:none}
+.pay-select:focus{border-color:rgba(34,211,163,.55);box-shadow:0 0 0 3px rgba(34,211,163,.18)}
+
+.card.right {
+  max-width: 900px;   /* limit width */
+  margin: auto;       /* center */
+  padding: 12px;      /* smaller padding */
+  font-size: 13px;    /* smaller text */
+}
+.card.right h2 {
+  font-size: 16px;    /* smaller heading */
+}
+.card.right table thead th,
+.card.right table tbody td {
+  font-size: 12px;    /* smaller table text */
+}
+
+
+/* === Full-width layout overrides === */
+.container{max-width:100% !important;}
+.card.right{
+  max-width:none !important;
+  width:100% !important;
+  margin:0 !important;
+  padding:16px;        /* comfortable padding */
+  font-size:14px;      /* readable body size */
+}
+.card.right h2{ font-size:18px; }
+.card.right table thead th,
+.card.right table tbody td{ font-size:13px; }
+
+
+/* === Force the .right card to take the full grid width on large screens === */
+@media(min-width:950px){
+  .right{ grid-column: 1 / -1 !important; }
+}
+
+
+/* inline country input in table */
+td input.country-input{
+  padding:8px 10px;
+  border-radius:10px;
+  width: 140px;
+}
+
+</style>
+<style>
+/* === Custom Stylish Table Action Buttons === */
+
+/* Bouton Modifier (vert) */
+button[data-act="edit"] {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(34,197,94,.9), rgba(34,197,94,.7));
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(34,197,94,.6);
+  box-shadow: 0 6px 16px rgba(34,197,94,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+button[data-act="edit"]:hover {
+  background: linear-gradient(90deg, rgba(34,197,94,1), rgba(22,163,74,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(34,197,94,.55);
+}
+button[data-act="edit"]:active {
+  transform: scale(0.95);
+}
+
+/* Bouton Marquer Non Payé (bleu) */
+button[data-act="toggle"] {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(59,130,246,.9), rgba(59,130,246,.7));
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(59,130,246,.6);
+  box-shadow: 0 6px 16px rgba(59,130,246,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+button[data-act="toggle"]:hover {
+  background: linear-gradient(90deg, rgba(59,130,246,1), rgba(37,99,235,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(59,130,246,.55);
+}
+button[data-act="toggle"]:active {
+  transform: scale(0.95);
+}
+
+/* Bouton Supprimer (rouge) */
+button[data-act="del"] {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(239,68,68,.9), rgba(239,68,68,.7));
+  color: #fff;
+  font-weight: 700;
+  border: 1px solid rgba(239,68,68,.6);
+  box-shadow: 0 6px 16px rgba(239,68,68,.35);
+  cursor: pointer;
+  transition: all .25s ease;
+}
+button[data-act="del"]:hover {
+  background: linear-gradient(90deg, rgba(239,68,68,1), rgba(220,38,38,.9));
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(239,68,68,.55);
+}
+button[data-act="del"]:active {
+  transform: scale(0.95);
+}
+</style><style>
+/* === Force same width for action buttons === */
+button[data-act="edit"],
+button[data-act="toggle"],
+button[data-act="del"] {
+  min-width: 140px;   /* Same width for all buttons */
+  text-align: center; /* Center the text */
+}
+</style><style>
+/* === Responsive Button Styles === */
+
+/* Default (desktop) */
+button[data-act="edit"],
+button[data-act="toggle"],
+button[data-act="del"] {
+  min-width: 140px;
+  text-align: center;
+  padding: 10px 14px;
+}
+
+/* Mobile screens */
+@media (max-width: 600px) {
+  button[data-act="edit"],
+  button[data-act="toggle"],
+  button[data-act="del"] {
+    min-width: 100px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
+</style>
+<style>
+/* === Mobile Hamburger + Menu === */
+.menu-btn { display:none; }
+.mobile-menu { display:none; }
+@media (max-width: 768px){
+  /* place hamburger at top-right */
+  .menu-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    position:absolute;
+    right:16px;
+    top:16px;
+    font-size:22px;
+    padding:6px 10px;
+    background:rgba(255,255,255,.08);
+    color:var(--text);
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .menu-btn:active{ transform: translateY(1px); }
+
+  .mobile-menu{
+    position:absolute;
+    top:64px;
+    left:12px;
+    right:12px;
+    background:linear-gradient(160deg, rgba(16,24,40,0.95), rgba(3,8,18,0.95));
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:16px;
+    padding:16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.55);
+    backdrop-filter: blur(12px);
+    display:none;
+    flex-direction:column;
+    gap:12px;
+    z-index:3000;
+  }
+  .mobile-menu.show{ display:flex; animation: slideDown .25s ease forwards; }
+  @keyframes slideDown{ 0%{ transform:translateY(-10px); opacity:0 } 100%{ transform:translateY(0); opacity:1 } }
+
+  .mobile-item{
+    appearance:none;
+    border:none;
+    border-radius:12px;
+    padding:12px;
+    font-weight:700;
+    letter-spacing:.3px;
+    cursor:pointer;
+    transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
+  }
+  .mobile-item:hover{ transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  .mobile-item:active{ transform: scale(0.97); }
+
+  /* colored buttons */
+  #mobileAddClient{ background:linear-gradient(90deg,#facc15,#fbbf24); color:#111; }
+  #mobileTools{ background:linear-gradient(90deg,#3b82f6,#2563eb); color:#fff; }
+  #mobileSettings{ background:linear-gradient(90deg,#22d3a3,#10b981); color:#03120b; }
+  #mobileLogout{ background:linear-gradient(90deg,#ef4444,#dc2626); color:#fff; }
+}
+</style>
+
+
+<style>
+/* === Mobile: hide header buttons; show only hamburger menu === */
+@media (max-width: 768px){
+  header .tools-wrap,
+  header .logout-col,
+  header #btnAddClientOpen,
+  header #btnTools,
+  header #btnLogout,
+  header #btnSettings {
+    display: none !important;
+  }
+}
+</style>
+
+
+<style>
+@media (max-width: 768px){
+  #toolsOverlay { display: none; }
+  #toolsOverlay[aria-hidden="false"] { display: flex !important; }
+}
+</style>
+
+
+<style>
+/* === Settings Overlay Modal === */
+.gm-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+}
+.gm-modal{
+  width: min(640px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+  background: rgba(15,23,42,0.96);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  padding: 14px;
+}
+.gm-modal-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 8px;
+  padding: 4px 2px 10px 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.gm-modal-header h3{
+  margin:0;
+  font-size: 18px;
+}
+.gm-close{
+  border:none;
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+}
+.gm-modal-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.btn-save{
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: linear-gradient(90deg, #22d3a3, #10b981);
+  color: #03120b;
+  font-weight: 700;
+  cursor:pointer;
+}
+</style>
+
+
+<style>
+/* === Mobile width/overflow fixes === */
+html, body { max-width: 100%; overflow-x: hidden; }
+* { box-sizing: border-box; }
+
+/* Ensure main containers never exceed viewport width */
+#app, .container, .wrap, .content, .card { max-width: 100%; }
+
+/* Images and logos scale down */
+img, svg { max-width: 100%; height: auto; }
+
+/* Buttons and inputs avoid forcing width */
+button, select, input { max-width: 100%; }
+
+/* Tables: allow horizontal scroll inside wrapper instead of stretching page */
+.table-wrap, .table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+table { width: 100%; border-collapse: collapse; }
+table th, table td { white-space: nowrap; } /* keep rows tidy on narrow screens */
+
+/* Prevent absolutely positioned elements from creating extra width */
+header .menu-btn { right: 12px; }
+@media (max-width: 420px){
+  body { padding-right: 0 !important; }
+  header { padding-left: 12px; padding-right: 12px; }
+  .card.right .search { padding: 8px; gap: 8px; }
+  #btnClear { width: auto; }
+}
+
+/* Avoid large margin that could push content */
+.section, .stats, .cards { margin-left: 0; margin-right: 0; }
+</style>
+
+
+<style>
+/* === Mobile zoom & sizing normalization === */
+@media (max-width: 480px){
+  html { font-size: 14px; }              /* shrink base type */
+  body { line-height: 1.35; }
+  header h1 { font-size: 1.1rem; }
+
+  /* Compact chips/buttons */
+  .btn, .btn-outline, .btn-danger, .btn-save, .mobile-item {
+    padding: 8px 12px !important;
+    border-radius: 10px !important;
+    font-size: 0.95rem !important;
+  }
+
+  /* Search cluster compact */
+  .card.right .search .input { height: 38px !important; }
+  #filterPaid, #btnClear { height: 38px !important; }
+
+  /* Table text a bit smaller */
+  table th, table td { font-size: 0.9rem; }
+
+  /* Ensure controls don't trigger iOS zoom on focus */
+  input, select, textarea { font-size: 16px; }
+
+  /* Logo & header spacing */
+  header .logo img { max-width: 90px; }
+  header { padding-top: 10px; padding-bottom: 10px; }
+}
+</style>
+
+
+<style>
+/* === Row Actions Dropdown === */
+.actions-dropdown{ position: relative; display:inline-block; }
+.actions-btn{
+  padding: 8px 14px; border-radius: 10px;
+  background: linear-gradient(90deg,#3b82f6,#2563eb);
+  color:#fff; font-weight:700; border:1px solid rgba(59,130,246,.6);
+  box-shadow:0 6px 16px rgba(59,130,246,.35); cursor:pointer;
+}
+.actions-menu{
+  position:absolute; top:110%; right:0; min-width:180px;
+  background:rgba(3,8,18,.95); border:1px solid rgba(255,255,255,.12);
+  border-radius:10px; padding:6px; display:none; flex-direction:column;
+  box-shadow:0 12px 28px rgba(0,0,0,.55); z-index:2200;
+}
+.actions-menu.hidden{ display:none; }
+.actions-dropdown.open .actions-menu{ display:flex; }
+.actions-menu .menu-item{
+  appearance:none; border:none; background:transparent;
+  padding:10px 12px; text-align:left; color:#e5e7eb; font-weight:700;
+  border-radius:8px; cursor:pointer;
+}
+.actions-menu .menu-item:hover{ background:rgba(255,255,255,.08); }
+.actions-menu .danger{ color:#f87171; }
+</style>
+
+
+<style>
+/* Override: larger logo on small screens */
+@media (max-width: 480px){
+  header .logo img { max-width: 115px !important; }
+}
+</style>
+
+
+<style>
+/* Fix: Add spacing below burger menu on mobile for title/hint */
+@media (max-width: 480px){
+  header + div h1 {
+    margin-top: 20px !important;
+  }
+  header + div .hint {
+    margin-top: 8px !important;
+    display: block;
+  }
+}
+</style>
+
+
+<style>
+/* Stronger fix: Larger spacing below burger menu on mobile for title/hint */
+@media (max-width: 480px){
+  header + div h1 {
+    margin-top: 50px !important;
+  }
+  header + div .hint {
+    margin-top: 20px !important;
+    display: block;
+  }
+}
+</style>
+
+
+<style>
+/* Bold H1 for mobile view */
+@media (max-width: 480px){
+  h1 {
+    font-weight: 900 !important;
+  }
+}
+</style>
+
+
+<style>
+/* Bigger and bold H1 for mobile view */
+@media (max-width: 480px){
+  h1 {
+    font-weight: 900 !important;
+    font-size: 1.6rem !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+}
+</style>
+
+
+<style>
+/* Professional style H1 for mobile */
+@media (max-width: 480px){
+  h1 {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    text-align: center;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+    margin-top: 40px !important;
+  }
+}
+</style>
+
+</head>
+<body>
+<!-- AUTH OVERLAY -->
+<div class="auth-wrap hidden" id="auth">
+<div class="auth-card">
+<div style="text-align:center; margin-bottom:18px;">
+<img alt="IPTV Manager Logo" src="assets/img/logo.png" style="width:200px; filter: drop-shadow(0 0 15px rgba(34,211,163,.5));"/>
+</div>
+<div class="tabs">
+<div class="tab active" id="tabLogin">Se connecter</div>
+<div class="tab" id="tabSignup">Créer un compte</div>
+</div>
+<div id="loginForm">
+<div class="field"><label>Nom d'utilisateur</label><input class="input" id="authUser" placeholder="ex: mohcine"/></div>
+<div class="field"><label>Mot de passe</label><input class="input" id="authPass" placeholder="••••••" type="password"/></div>
+<div class="auth-actions">
+<button class="btn" id="btnLogin">Connexion</button>
+</div>
+<div class="auth-hint" id="authMsg"></div>
+</div>
+<div class="hidden" id="signupForm">
+<div class="field"><label>Nom d'utilisateur</label><input class="input" id="suUser" placeholder="ex: papa"/></div>
+<div class="field"><label>Mot de passe (min 6 caractères)</label><input class="input" id="suPass" type="password"/></div>
+<div class="field"><label>Confirmer le mot de passe</label><input class="input" id="suPass2" type="password"/></div>
+<div class="auth-actions">
+<button class="btn" id="btnSignup">Créer le compte</button>
+</div>
+<div class="auth-hint" id="suMsg"></div>
+</div>
+</div>
+</div>
+<!-- APP -->
+<div class="hidden" id="app">
+<header>
+<div class="brand">
+<div class="logo"><img alt="IPTV Manager" src="assets/img/logo.png"/></div>
+<button id="menuToggle" class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu">☰</button>
+<div id="mobileMenu" class="mobile-menu" aria-hidden="true">
+  <button class="mobile-item" id="mobileAddClient">Add Client</button>
+  <button class="mobile-item" id="mobileTools">Tools</button>
+  <button class="mobile-item" id="mobileSettings">Settings</button>
+  <button class="mobile-item" id="mobileLogout">Logout</button>
+</div>
+
+<div>
+<h1>IPTV MANAGER</h1>
+<div class="hint">Developper par <strong>Mohcine</strong> All Rights Reserved</div>
+</div>
+</div>
+<!-- username moved above logout button as requested -->
+<div class="tools-wrap">
+<button class="icon-btn" id="btnSettings" title="Paramètres">⚙️</button> <button class="btn-yellow" id="btnAddClientOpen">Add Client</button>
+</div><div class="tools-wrap"><button class="btn-blue" id="btnTools" title="Outils">Tools</button><div aria-hidden="true" class="tools-menu" id="toolsMenu">
+<div class="actions"><button class="btn-outline" id="btnExport">Exporter JSON</button><input accept="application/json" id="fileImport" style="display:none" type="file"/><button class="btn-outline" id="btnImport">Importer JSON</button><button class="btn-danger" id="btnReset">Tout réinitialiser (compte)</button></div></div></div><div class="logout-col">
+<div class="client-id">Client : <span id="currentClient">—</span></div>
+<div style="display:flex; gap:8px;"></div>
+<div class="logout-row"><button id="btnLogout">Logout</button></div>
+</div></header>
+<div aria-hidden="true" class="generic-modal" id="settingsOverlay">
+<div class="gm-content">
+<div class="gm-header">
+<h3 class="gm-title">Paramètres</h3>
+<button class="gm-close" id="closeSettings">×</button>
+</div>
+<div class="toast-success" id="settingsToast">Paramètres sauvegardées ✓</div>
+<div id="settingsMount"></div>
+<div class="actions" style="justify-content:center; margin-top:20px;">
+<button class="btn-save" id="btnSaveSettings">Save</button>
+</div>
+</div>
+</div>
+<div aria-hidden="true" class="generic-modal" id="toolsOverlay">
+<div class="gm-content">
+<div class="gm-header">
+<h3 class="gm-title">Outils</h3>
+<button class="gm-close" id="closeTools">×</button>
+</div>
+<div class="actions" style="justify-content:flex-start">
+<button class="btn-outline" id="toolsExport">Exporter JSON</button>
+<button class="btn-outline" id="toolsImport">Importer JSON</button>
+<button class="btn-danger" id="toolsReset">Tout réinitialiser (compte)</button>
+</div>
+<p class="hint" style="margin-top:10px">L'import utilise le même sélecteur de fichier caché.</p>
+</div>
+</div>
+<!-- Add Client Modal -->
+<div aria-hidden="true" class="modal-backdrop" id="addClientModal">
+<div class="modal">
+<h3>Ajouter un client</h3>
+<div class="row">
+<div class="field">
+<label>Nom</label>
+<input class="input" id="m_name" placeholder="ex: Yassine"/>
+</div>
+<div class="field">
+<label>Username / Code</label>
+<input class="input" id="m_username" placeholder="ex: yassine_123"/>
+</div>
+<div class="field">
+<label>Adresse MAC</label>
+<input class="input" id="m_mac" placeholder="ex: AA:BB:CC:DD:EE:FF"/>
+</div>
+<div class="field">
+<label>Date de début</label>
+<div style="display:flex; gap:8px; align-items:center">
+<input class="input" id="m_start" type="date"/>
+<button class="icon-btn" id="m_start_btn" title="Ouvrir le calendrier" type="button">📅</button>
+</div>
+</div>
+<div class="field">
+<label>Type d'abonnement</label>
+<select class="input" id="m_type">
+<option selected="" value="1y">1 an</option>
+</select>
+</div>
+<div class="field">
+<label>Prix de vente (DH)</label>
+<input class="input" id="m_sale" min="0" placeholder="ex: 300" step="1" type="number"/>
+</div>
+<div class="field">
+<label>Device/APP</label>
+<select class="input" id="m_device">
+<option value="Eagle 3.8">Eagle 3.8</option>
+<option selected="" value="Eagle Pro (code)">Eagle Pro (code)</option>
+<option value="Hot Player">Hot Player (LG/Samsung)</option>
+<option value="Iptv Smarters">Iptv Smarters (LG/Samsung)</option>
+<option value="IOS (iPhone)">IOS (iPhone)</option>
+<option value="IOS (IPAD)">IOS (IPAD)</option>
+<option value="STB (Receiver)">STB (Receiver)</option>
+</select>
+</div>
+<div class="field">
+<label>Country</label>
+<input class="input" id="m_country" placeholder="ex: Maroc"/>
+</div>
+</div>
+<div class="actions">
+<button class="btn-outline" id="btnModalClose">Annuler</button>
+<button class="btn-yellow" id="btnModalAdd">+ Ajouter le client</button>
+</div>
+</div>
+</div>
+<!-- Edit Client Modal -->
+<div aria-hidden="true" class="modal-backdrop" id="editClientModal">
+<div class="modal">
+<h3>Modifier client</h3>
+<div class="row">
+<div class="field">
+<label>Nom</label>
+<input class="input" id="e_name"/>
+</div>
+<div class="field">
+<label>Username / Code</label>
+<input class="input" id="e_username"/>
+</div>
+<div class="field">
+<label>Adresse MAC</label>
+<input class="input" id="e_mac"/>
+</div>
+<div class="field">
+<label>Country</label>
+<input class="input" id="e_country" placeholder="ex: Maroc"/>
+</div>
+<div class="field">
+<label>Device/APP</label>
+<select class="input" id="e_device">
+<option value="Eagle 3.8">Eagle 3.8</option>
+<option value="Eagle Pro (code)">Eagle Pro (code)</option>
+<option value="Hot Player">Hot Player (LG/Samsung)</option>
+<option value="Iptv Smarters">Iptv Smarters (LG/Samsung)</option>
+<option value="IOS (iPhone)">IOS (iPhone)</option>
+<option value="IOS (IPAD)">IOS (IPAD)</option>
+<option value="STB (Receiver)">STB (Receiver)</option>
+</select>
+</div>
+
+<div class="field">
+  <label>Date de début</label>
+  <input class="input" id="e_start" type="date"/>
+</div>
+<div class="field">
+  <label>Type d'abonnement</label>
+  <select class="input" id="e_type">
+    <option value="1y">1 an</option>
+    <option value="6m">6 mois</option>
+    <option value="3m">3 mois</option>
+  </select>
+</div>
+<div class="field">
+  <label>Prix de vente (DH)</label>
+  <input class="input" id="e_sale" type="number" min="0" step="1"/>
+</div>
+<div class="field">
+  <label>Paiement Par</label>
+  <select class="input" id="e_paiement">
+    <option value="Ria/WU">Ria / WU</option>
+    <option value="Virement">Virement (Bank)</option>
+    <option value="PayPal">PayPal</option>
+    <option value="Espece">Espèce</option>
+    <option value="Pas encore">Pas encore</option>
+  </select>
+</div>
+</div>
+<div class="actions">
+<button class="btn-outline" id="btnEditClose">Annuler</button>
+<button class="btn-yellow" id="btnEditSave">Enregistrer</button>
+</div>
+</div>
+</div>
+<div class="hidden" id="clientForm">
+<h2 style="margin-top:16px">Ajouter un client</h2>
+<div class="row">
+<div class="field">
+<label>Nom</label>
+<input class="input" id="name" placeholder="ex: Yassine"/>
+</div>
+<div class="field">
+<label>Username / Code</label>
+<input class="input" id="username" placeholder="ex: yassine_123"/>
+</div>
+<div class="field">
+<label>Adresse MAC</label>
+<input class="input" id="mac" placeholder="ex: AA:BB:CC:DD:EE:FF"/>
+</div>
+<div class="field">
+<label>Date de début</label>
+<input class="input" id="start" type="date"/>
+</div>
+<div class="field">
+<label>Type d'abonnement</label>
+<select id="type">
+<option selected="" value="1y">1 an</option>
+</select>
+</div>
+<div class="field">
+<label>Prix de vente (DH)</label>
+<input class="input" id="sale" min="0" placeholder="ex: 300" step="1" type="number"/>
+</div>
+</div>
+</div>
+<input id="device" type="hidden"/>
+<input id="country" type="hidden"/>
+<input id="paiement" type="hidden"/>
+<section class="grid"><div class="card full stats-card" style="grid-column:1 / -1"><h3>Statistiques</h3><div class="stats-wrap"><div class="stats">
+<!-- removed the "Utilisateur" pill as requested -->
+<div class="pill">Crédits restants: <span class="ok" id="creditsLeft">—</span></div>
+<div class="pill">Total à payer serveur: <strong class="ok" id="totalToPay">0 DH</strong></div>
+<div class="pill">Gain total: <strong class="ok" id="gainTotal">0 DH</strong></div>
+<button class="pill-btn" id="btnMonthly" title="Voir historique mensuel">Monthly Earning</button>
+</div></div></div>
+<!-- Paramètres & Formulaire -->
+<div class="card left hidden" id="settingsCard">
+<h2>Paramètres</h2>
+<div class="field">
+<label>Crédits disponibles</label>
+<input class="input" id="inputCredits" min="0" placeholder="ex: 500" step="1" type="number"/>
+</div>
+<div class="field">
+<label>Coût par abonnement (crédits)</label>
+<input class="input" id="inputCost" min="1" step="1" type="number" value="12"/>
+</div>
+<div class="field">
+<label>Prix d'achat par code 1 an (DH)</label>
+<input class="input" id="inputPrice" min="0" step="1" type="number" value="60"/>
+</div>
+<div class="field">
+<label>Prix de vente par défaut (DH)</label>
+<input class="input" id="inputSale" min="0" step="1" type="number" value="300"/>
+</div>
+<div class="hint">Les outils (export, import, réinitialisation) sont dans le menu <strong>Tools</strong> en haut.</div>
+<button class="btn hidden" id="btnAdd">+ Ajouter le client</button><div class="hint hidden" id="addMsg"></div></div>
+<!-- Liste des clients -->
+<div class="card right">
+<div>
+<div class="clients-count">Nombre total de clients : <span class="count-green" id="countClients">0</span></div>
+<h2>Liste des clients</h2>
+<div class="search">
+<input class="input" id="search" placeholder="Rechercher nom / username / code…"/>
+
+  <select id="filterPaid" onchange="render()" 
+    style="margin-left:8px;padding:6px 8px;border-radius:8px;
+           border:1px solid rgba(255,255,255,.22);
+           background:rgba(3,8,18,.65);color:var(--text);font-size:12px">
+    <option value="all" selected>All</option>
+    <option value="paid">Payé</option>
+    <option value="unpaid">Non Payé</option>
+  </select>
+<button class="btn-outline" id="btnClear">Effacer</button>
+</div>
+</div>
+<div style="overflow:auto;max-height:62vh;border-radius:12px;border:1px solid rgba(255,255,255,.08);margin-top:8px">
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Nom</th>
+<th>Username/Code</th>
+<th>Device/APP</th>
+<th>Début</th>
+<th>Fin</th>
+<th>Type</th>
+<th>Paiement<br/>
+
+</th>
+<th>Paiement Par</th>
+<th>MAC</th>
+<th>Country</th>
+<th>Vente (DH)</th>
+<th>Profit (DH)</th>
+<th>Actions</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+<div class="hint">Les données sont stockées localement dans ce navigateur</div>
+</div>
+</section>
+</div>
+<script>
+    // ======= LocalStorage Keys (global) =======
+    const LS_ACCOUNTS = 'iptv_accounts_v1'; // [{user, passHash, createdAt}]
+    const LS_CURRENT  = 'iptv_current_user_v1';
+
+    // ======= Per-user key helper =======
+    const k = (base, user)=> `${base}__${user}`;
+
+    // ======= Helpers =======
+    const $ = (q)=> document.querySelector(q);
+    const formatDate = (d)=> new Date(d).toLocaleDateString('fr-FR');
+    const escapeHtml = (s)=> String(s||'').replace(/[&<>\"]/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
+    const toHex = (buf)=> [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    async function sha256(str){ const enc = new TextEncoder().encode(str); const hash = await crypto.subtle.digest('SHA-256', enc); return toHex(hash); }
+
+    // ======= App State =======
+    const state = { user: null, clients: [], credits: 500, cost: 12, price: 60, saleDefault: 300, search: '' };
+
+    function userKeys(){
+      if(!state.user) return {};
+      return {
+        LS_CLIENTS: k('iptv_clients_v4', state.user),
+        LS_CREDITS: k('iptv_credits_v4', state.user),
+        LS_COST:    k('iptv_cost_v4', state.user),
+        LS_PRICE:   k('iptv_price_v4', state.user),
+        LS_SALE:    k('iptv_sale_default_v4', state.user),
+      };
+    }
+
+    function loadUserData(){
+      const keys = userKeys(); if(!keys.LS_CLIENTS) return;
+      try{ state.clients = JSON.parse(localStorage.getItem(keys.LS_CLIENTS) || '[]'); }catch{ state.clients = [] }
+      state.credits = parseInt(localStorage.getItem(keys.LS_CREDITS) || '500', 10);
+      state.cost    = parseInt(localStorage.getItem(keys.LS_COST)    || '12', 10);
+      state.price   = parseInt(localStorage.getItem(keys.LS_PRICE)   || '60', 10);
+      state.saleDefault = parseInt(localStorage.getItem(keys.LS_SALE) || '300', 10);
+      $('#inputCredits').value = state.credits;
+      $('#inputCost').value = state.cost;
+      $('#inputPrice').value = state.price;
+      $('#inputSale').value = state.saleDefault;
+      // set username in its new location
+      const whoEl = $('#who');
+      if(whoEl) whoEl.textContent = state.user;
+  const clientEl = $('#currentClient'); if (clientEl) clientEl.textContent = state.user;
+    }
+    function saveUserData(){
+      const keys = userKeys(); if(!keys.LS_CLIENTS) return;
+      localStorage.setItem(keys.LS_CLIENTS, JSON.stringify(state.clients));
+      localStorage.setItem(keys.LS_CREDITS, String(state.credits));
+      localStorage.setItem(keys.LS_COST,    String(state.cost));
+      localStorage.setItem(keys.LS_PRICE,   String(state.price));
+      localStorage.setItem(keys.LS_SALE,    String(state.saleDefault));
+    }
+
+    function badgeClass(v){ if(v <= 0) return 'zero'; if(v <= state.cost * 2) return 'low'; return 'ok'; }
+
+    function totals(){
+      const totalAchat = state.clients.reduce((s,c)=> s + (c.price ?? state.price), 0);
+      const totalVente = state.clients.reduce((s,c)=> s + (c.sale  ?? state.saleDefault), 0);
+      const totalProfit = totalVente - totalAchat;
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const monthly = state.clients
+        .filter(c=> { const d=new Date(c.start); return d.getMonth()===month && d.getFullYear()===year; })
+        .reduce((s,c)=> s + ((c.sale ?? state.saleDefault) - (c.price ?? state.price)), 0);
+      return { totalAchat, totalVente, totalProfit, monthly };
+    }
+
+    function updateTotals(){
+      const { totalAchat, totalProfit, monthly } = totals();
+      const cls = badgeClass(state.credits);
+      const leftEl = $('#creditsLeft'); leftEl.textContent = state.credits; leftEl.className = cls;
+      $('#countClients').textContent = state.clients.length;
+      const payEl = $('#totalToPay');  payEl.textContent  = `${totalAchat} DH`;  payEl.className  = cls;
+      const gainEl = $('#gainTotal');  gainEl.textContent = `${totalProfit} DH`; gainEl.className = cls;
+      const gainMonthly = $('#gainMonthly'); if(gainMonthly){ gainMonthly.textContent = `${monthly} DH`; gainMonthly.className = 'ok'; }
+    }
+
+    function render(){
+      updateTotals();
+      const q = state.search.toLowerCase().trim();
+      const tbody = $('#tbody'); tbody.innerHTML = '';
+      const rows = state.clients
+        .map((c,i)=> ({...c, idx:i+1, achat:(c.price ?? state.price), vente:(c.sale ?? state.saleDefault)}))
+        .filter(c => {
+        const paidFilter = document.getElementById('filterPaid')?.value || 'all';
+        const matchText = !q || [c.name, c.username, c.code].some(v => (v || '').toLowerCase().includes(q));
+        const matchPaid = paidFilter === 'all' ||
+          (paidFilter === 'paid' && c.paid === 'yes') ||
+          (paidFilter === 'unpaid' && c.paid !== 'yes');
+        return matchText && matchPaid;
+      });
+
+      const cntEl = document.getElementById('countClients'); if (cntEl) cntEl.textContent = rows.length;
+      if(rows.length===0){
+        const tr=document.createElement('tr');
+        const td=document.createElement('td'); td.colSpan=14; td.textContent='Aucun client.'; td.style.color='#cbd5e1'; td.style.padding='16px';
+        tr.appendChild(td); tbody.appendChild(tr);
+      } else {
+        for(const c of rows){
+          const profit = (c.vente - c.achat);
+          const tr=document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.idx}</td>
+            <td><strong>${escapeHtml(c.name)}</strong></td>
+            <td class="col-username"><span class="pill" style="padding:4px 8px">${escapeHtml(c.username||c.code||'—')}</span></td>
+            <td><select class="device-select" data-id="${c.id}"><option value="Eagle 3.8" ${ c.device==="Eagle 3.8" ? "selected" : "" }>Eagle 3.8</option><option value="Eagle Pro (code)" ${ c.device==="Eagle Pro (code)" ? "selected" : "" }>Eagle Pro (code)</option><option value="Hot Player" ${ c.device==="Hot Player" ? "selected" : "" }>Hot Player (LG/Samsung)</option><option value="Iptv Smarters" ${ c.device==="Iptv Smarters" ? "selected" : "" }>Iptv Smarters (LG/Samsung)</option><option value="IOS (iPhone)" ${ c.device==="IOS (iPhone)" ? "selected" : "" }>IOS (iPhone)</option><option value="IOS (IPAD)" ${ c.device==="IOS (IPAD)" ? "selected" : "" }>IOS (IPAD)</option><option value="STB (Receiver)" ${ c.device==="STB (Receiver)" ? "selected" : "" }>STB (Receiver)</option></select></td>
+            <td class="date-start">${formatDate(c.start)}</td>
+            <td class="date-end ${new Date(c.end) < new Date() ? 'expired' : ''}">${formatDate(c.end)}</td>
+            <td><select class="pay-select type-select" data-id="${c.id}"><option value="1y" ${ c.type==="1y" ? "selected" : "" }>1 year</option><option value="6m" ${ c.type==="6m" ? "selected" : "" }>6 months</option><option value="3m" ${ c.type==="3m" ? "selected" : "" }>3 months</option></select></td>
+            <td class="${c.paid==='yes'?'paid':'unpaid'}">${c.paid==='yes'?'Payé':'Non Payé'}</td>
+            <td><select class="pay-select" data-id="${c.id}"><option value="Ria/WU" ${ (c.paiement||"Espece")==="Ria/WU" ? "selected" : "" }>Ria / WU</option><option value="Virement" ${ (c.paiement||"Espece")==="Virement" ? "selected" : "" }>Virement (Bank)</option><option value="PayPal" ${ (c.paiement||"Espece")==="PayPal" ? "selected" : "" }>PayPal</option><option value="Espece" ${ (c.paiement||"Espece")==="Espece" ? "selected" : "" }>Espèce</option><option value="Pas encore" ${ (c.paiement||"Espece")==="Pas encore" ? "selected" : "" }>Pas encore</option></select></td>
+            <td>${escapeHtml(c.mac || '—')}</td>
+            <td><input class="input country-input" data-id="${c.id}" placeholder="ex: Maroc" value="${escapeHtml(c.country||'')}"></td>
+            <td class="col-vente">${c.vente} DH</td>
+            <td class="col-profit">${profit} DH</td>
+            <td>
+  <div class="actions-dropdown">
+    <button class="btn-outline actions-btn" data-id="${c.id}">⚙️ Actions</button>
+    <div class="actions-menu hidden" id="menu-${c.id}">
+      <button class="menu-item" data-act="edit" data-id="${c.id}">Modifier</button>
+      <button class="menu-item" data-act="toggle" data-id="${c.id}">${c.paid==='yes'?'Marquer Non Payé':'Marquer Payé'}</button>
+      <button class="menu-item danger" data-act="del" data-id="${c.id}">Supprimer</button>
+    </div>
+  </div>
+</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      saveUserData();
+    }
+
+    function flash(msg, isErr=false){
+      const el = $('#addMsg');
+      el.textContent = msg;
+      el.style.color = isErr ? 'var(--danger)' : 'var(--accent)';
+      setTimeout(()=> el.textContent='', 3000);
+    }
+
+    // ======= Auth Logic =======
+    function showAuth(){ $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); }
+    function showApp(){  $('#auth').classList.add('hidden');    $('#app').classList.remove('hidden'); }
+
+    function getAccounts(){ try{ return JSON.parse(localStorage.getItem(LS_ACCOUNTS) || '[]'); }catch{ return [] } }
+    function setAccounts(list){ localStorage.setItem(LS_ACCOUNTS, JSON.stringify(list)); }
+
+    async function login(user, pass){
+      const list = getAccounts();
+      const u = list.find(a=> a.user===user);
+      if(!u) throw new Error("Utilisateur introuvable");
+      const ph = await sha256(pass);
+      if(u.passHash !== ph) throw new Error("Mot de passe incorrect");
+      localStorage.setItem(LS_CURRENT, user);
+      state.user = user; loadUserData(); showApp(); render();
+    }
+    async function signup(user, pass, pass2){
+      if(!user || user.length<3) throw new Error('Nom d\'utilisateur trop court');
+      if(pass!==pass2) throw new Error('Les mots de passe ne correspondent pas');
+      if(!pass || pass.length<6) throw new Error('Mot de passe trop court');
+      const list = getAccounts();
+      if(list.some(a=> a.user===user)) throw new Error('Utilisateur déjà existant');
+      const ph = await sha256(pass);
+      list.push({user, passHash: ph, createdAt: Date.now()});
+      setAccounts(list);
+      localStorage.setItem(LS_CURRENT, user);
+      state.user = user; loadUserData(); showApp(); render();
+    }
+    function logout(){ localStorage.removeItem(LS_CURRENT); state.user=null; showAuth(); }
+
+    // ======= UI Events =======
+    document.addEventListener('click', (e)=>{
+      const t = e.target;
+      if(t.id==='btnAdd') return addClient();
+      if(t.id==='btnReset'){
+        if(confirm('Tout supprimer pour ce compte ?')){
+          const keys = userKeys();
+          localStorage.removeItem(keys.LS_CLIENTS);
+          localStorage.removeItem(keys.LS_CREDITS);
+          localStorage.removeItem(keys.LS_COST);
+          localStorage.removeItem(keys.LS_PRICE);
+          localStorage.removeItem(keys.LS_SALE);
+          loadUserData(); render(); flash('Réinitialisé.');
+        }
+      }
+      if(t.id==='btnExport'){
+        const data = { user: state.user, clients: state.clients, credits: state.credits, cost: state.cost, price: state.price, saleDefault: state.saleDefault };
+        const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `iptv_${state.user}_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+      }
+      if(t.id==='btnImport') $('#fileImport').click();
+      if(t.dataset && t.dataset.act==='del'){
+        const id = t.dataset.id;
+        const i = state.clients.findIndex(c=> c.id===id);
+        if(i>-1 && confirm('Supprimer ce client ?')){
+          state.credits += state.cost; // rendre le crédit
+          state.clients.splice(i,1);
+          render();
+        }
+      }
+      if(t.dataset && t.dataset.act==='toggle'){
+        const id = t.dataset.id; const c = state.clients.find(x=> x.id===id);
+        if(c){ c.paid = c.paid==='yes'?'no':'yes'; render(); }
+      }
+      if(t.id==='btnClear'){ $('#search').value=''; state.search=''; render(); }
+      if(t.id==='btnLogout') logout();
+      if(t.id==='tabLogin'){ $('#tabLogin').classList.add('active'); $('#tabSignup').classList.remove('active'); $('#loginForm').classList.remove('hidden'); $('#signupForm').classList.add('hidden'); }
+      if(t.id==='tabSignup'){ $('#tabSignup').classList.add('active'); $('#tabLogin').classList.remove('active'); $('#signupForm').classList.remove('hidden'); $('#loginForm').classList.add('hidden'); }
+      if(t.id==='btnLogin') (async()=>{ $('#authMsg').textContent=''; try{ await login($('#authUser').value.trim(), $('#authPass').value); }catch(err){ $('#authMsg').textContent = err.message; } 
+    const btnAddClient = document.getElementById('btnAddClient');
+    const clientForm = document.getElementById('clientForm');
+    if(btnAddClient && clientForm){
+      btnAddClient.addEventListener('click', ()=>{
+        const visible = clientForm.style.display === 'block';
+        clientForm.style.display = visible ? 'none' : 'block';
+        if(!visible){
+          clientForm.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      });
+    }
+
+})();
+      if(t.id==='btnSignup') (async()=>{ $('#suMsg').textContent=''; try{ await signup($('#suUser').value.trim(), $('#suPass').value, $('#suPass2').value); }catch(err){ $('#suMsg').textContent = err.message; } })();
+    });
+
+    $('#fileImport').addEventListener('change', (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        try{
+          const data = JSON.parse(reader.result);
+          if(data.user && data.user!==state.user) return alert('Ce backup est pour un autre utilisateur.');
+          if(Array.isArray(data.clients)) state.clients = data.clients; else throw new Error('format');
+          if(typeof data.credits==='number') state.credits = data.credits;
+          if(typeof data.cost==='number') state.cost = data.cost;
+          if(typeof data.price==='number') state.price = data.price;
+          if(typeof data.saleDefault==='number') state.saleDefault = data.saleDefault;
+          $('#inputCredits').value = state.credits; $('#inputCost').value = state.cost; $('#inputPrice').value = state.price; $('#inputSale').value = state.saleDefault;
+          render(); flash('Import réussi');
+        }catch{ alert('Fichier invalide'); }
+      };
+      reader.readAsText(f);
+    });
+
+    // Inputs live (per-user)
+    $('#inputCredits').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.credits = isNaN(v)?0:v; updateTotals(); saveUserData(); });
+    $('#inputCost').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'12',10); state.cost = Math.max(1, isNaN(v)?12:v); updateTotals(); saveUserData(); });
+    $('#inputPrice').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'60',10); state.price = Math.max(0, isNaN(v)?60:v); updateTotals(); saveUserData(); render(); });
+    $('#inputSale').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'300',10); state.saleDefault = Math.max(0, isNaN(v)?300:v); updateTotals(); saveUserData(); render(); });
+    $('#search').addEventListener('input', (e)=>{ state.search = e.target.value; render(); });
+
+    function addClient(){
+      const name = $('#name').value.trim();
+      const username = $('#username').value.trim();
+      const start = $('#start').value;
+      const type = $('#type').value;
+      const sale = parseInt($('#sale').value || state.saleDefault, 10);
+      const mac = $('#mac').value.trim();
+if(!name || !username || !start || !mac){ return flash('Remplissez tous les champs (y compris MAC)', true); }
+      if(state.credits < state.cost){ return flash(`Crédits insuffisants. Restants: ${state.credits}, requis: ${state.cost}.`, true); }
+      const client = { id: crypto.randomUUID(), name, username, code: username, start, end: computeEnd(start,type), type, paid:'no', price: state.price, sale: isNaN(sale)?state.saleDefault:sale , paiement: (document.getElementById('paiement')?.value || 'Espece'), device: ($('#device')?.value || 'Eagle Pro (code)'),
+      mac,
+      country: ($('#country')?.value || '')
+    };
+      state.clients.unshift(client);
+      state.credits -= state.cost; // décrémenter les crédits
+      // clear search so the newly added client is visible
+      const qEl = document.getElementById('search'); if(qEl){ qEl.value=''; }
+      state.search = '';
+      $('#name').value=''; $('#username').value=''; $('#start').value=''; $('#type').value='1y'; $('#sale').value='';
+      $('#mac').value='';
+      render();
+      flash('Client ajouté. Crédits & totaux mis à jour.');
+    }
+
+    function computeEnd(start, type){ const d = new Date(start); if(type==='1y') d.setFullYear(d.getFullYear()+1); else if(type==='6m') d.setMonth(d.getMonth()+6); else if(type==='3m') d.setMonth(d.getMonth()+3); return d.toISOString().slice(0,10);}
+
+    // ======= Boot =======
+    (function init(){
+      const current = localStorage.getItem(LS_CURRENT);
+      if(current){ state.user = current; loadUserData(); showApp(); }
+      else { showAuth(); }
+      const today = new Date().toISOString().slice(0,10); const start = document.getElementById('start'); if(start) start.value = today;
+      if(state.user) render();
+    })();
+  
+  // === Tools dropdown & Settings toggle ===
+  (function(){
+    const btnTools = document.getElementById('btnTools');
+    const menu = document.getElementById('toolsMenu');
+    const fileInput = document.getElementById('fileImport');
+    const btnImport = document.getElementById('btnImport');
+    const btnSettings = document.getElementById('btnSettings');
+    const settingsCard = document.getElementById('settingsCard');
+
+    if(btnTools && menu){
+      btnTools.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const open = menu.style.display === 'block';
+        menu.style.display = open ? 'none' : 'block';
+        menu.setAttribute('aria-hidden', open ? 'true' : 'false');
+      });
+      // Close when clicking outside
+      window.addEventListener('click', (e)=>{
+        if(!menu) return;
+        if(menu.style.display !== 'block') return;
+        if(menu.contains(e.target) || e.target === btnTools) return;
+        menu.style.display = 'none';
+        menu.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    if(btnImport && fileInput){
+      btnImport.addEventListener('click', ()=> fileInput.click());
+    }
+
+    if(btnSettings && settingsCard){
+      btnSettings.addEventListener('click', ()=>{
+        const hidden = settingsCard.classList.contains('hidden');
+        if(hidden){
+          settingsCard.classList.remove('hidden');
+          settingsCard.scrollIntoView({behavior:'smooth', block:'start'});
+        } else {
+          settingsCard.classList.add('hidden');
+          // Optionally scroll back to top
+          window.scrollTo({top:0, behavior:'smooth'});
+        }
+      });
+    }
+  })();
+
+
+// === Add Client Modal Logic ===
+(function(){
+  const openBtn = document.getElementById('btnAddClientOpen');
+  const modal = document.getElementById('addClientModal');
+  const closeBtn = document.getElementById('btnModalClose');
+  const addBtn = document.getElementById('btnModalAdd');
+
+  // modal fields
+  const m_name = document.getElementById('m_name');
+  const m_username = document.getElementById('m_username');
+  const m_mac = document.getElementById('m_mac');
+  const m_country = document.getElementById('m_country');
+  const m_start = document.getElementById('m_start');
+  const m_type = document.getElementById('m_type');
+  const m_sale = document.getElementById('m_sale');
+
+  // original hidden form fields
+  const f_name = document.getElementById('name');
+  const f_username = document.getElementById('username');
+  const f_mac = document.getElementById('mac');
+  const f_country = document.getElementById('country');
+  const f_start = document.getElementById('start');
+  const f_type = document.getElementById('type');
+  const f_sale = document.getElementById('sale');
+  const f_add = document.getElementById('btnAdd');
+
+  function openModal(){
+    // prefill start date to today (YYYY-MM-DD)
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    m_start.value = `${yyyy}-${mm}-${dd}`;
+    if(document.getElementById('m_sale')){ document.getElementById('m_sale').value = (window.state?.saleDefault ?? 300); }
+modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
+    m_name.focus();
+  }
+  function closeModal(){
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+  }
+
+  if(openBtn && modal){
+    openBtn.addEventListener('click', openModal);
+  }
+  if(closeBtn){
+    closeBtn.addEventListener('click', closeModal);
+  }
+  // close on backdrop click
+  modal?.addEventListener('click', (e)=>{
+    if(e.target === modal) closeModal();
+  });
+  // Esc key
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && modal?.style.display === 'flex') closeModal();
+  });
+
+  if(addBtn && f_add){
+    addBtn.addEventListener('click', ()=>{
+      // copy values to original form
+      if(f_name) f_name.value = m_name.value.trim();
+      if(f_username) f_username.value = m_username.value.trim();
+      if(f_start) f_start.value = m_start.value;
+      if(f_type) f_type.value = m_type.value;
+      if(f_sale) f_sale.value = m_sale.value;
+      if(f_mac) f_mac.value = (m_mac ? m_mac.value.trim() : '');
+      if(f_country) f_country.value = (m_country ? m_country.value.trim() : '');
+      // trigger original add logic
+      closeModal();
+    });
+  }
+})();
+
+</script>
+<!-- Monthly earnings flyout -->
+<div aria-hidden="true" id="monthlyPanel">
+<div class="panel-content">
+<h3>Historique — Monthly Earning <button aria-label="Fermer" class="monthly-close" id="closeMonthly">×</button></h3>
+<div class="monthly-summary" id="monthlySummary"></div>
+<ul class="month-list" id="monthlyList"></ul>
+<div class="hint">Montants affichés = somme des profits (vente − achat) par mois de début.</div>
+</div>
+</div>
+<script>
+(function(){
+  // Fallback query helper if needed
+  if(typeof window.$ !== 'function'){
+    window.$ = (sel, root=document) => root.querySelector(sel);
+  }
+
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+  
+  function monthlyEarnings(){
+    try{
+      let rowsData = [];
+      // Primary: from state.clients
+      const clients = (window.state && Array.isArray(window.state.clients)) ? window.state.clients : [];
+      if(clients.length > 0){
+        const priceDefault = (typeof window.state.price==='number') ? window.state.price : 0;
+        const saleDefault  = (typeof window.state.saleDefault==='number') ? window.state.saleDefault : 0;
+        for(const c of clients){
+          if(!c || !c.start) continue;
+          let d = new Date(c.start);
+          // If start appears as DD/MM/YYYY, normalize
+          if(isNaN(d) && /\d{2}\/\d{2}\/\d{4}/.test(c.start)){
+            const [dd,mm,yy] = c.start.split('/').map(x=>parseInt(x,10));
+            d = new Date(yy, mm-1, dd);
+          }
+          if(isNaN(d)) continue;
+          const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          const sale  = (typeof c.sale  === 'number') ? c.sale  : saleDefault;
+          const price = (typeof c.price === 'number') ? c.price : priceDefault;
+          const profit = (sale - price);
+          rowsData.push({key, y:d.getFullYear(), m:d.getMonth()+1, amount: profit});
+        }
+      } else {
+        // Fallback: scrape rendered table (#tbody)
+        const tbody = document.getElementById('tbody');
+        if(tbody){
+          const trs = Array.from(tbody.querySelectorAll('tr'));
+          for(const tr of trs){
+            const debutEl = tr.querySelector('.date-start');
+            const profitEl = tr.querySelector('.col-profit');
+            if(!debutEl || !profitEl) continue;
+            const debutText = debutEl.textContent.trim();
+            const profitText = profitEl.textContent.replace(/[^0-9-]/g,'').trim();
+            const amt = parseInt(profitText||'0',10) || 0;
+            // debutText could be DD/MM/YYYY
+            let d;
+            if(/\d{2}\/\d{2}\/\d{4}/.test(debutText)){
+              const [dd,mm,yy] = debutText.split('/').map(x=>parseInt(x,10));
+              d = new Date(yy, mm-1, dd);
+            } else {
+              d = new Date(debutText);
+            }
+            if(isNaN(d)) continue;
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            rowsData.push({key, y:d.getFullYear(), m:d.getMonth()+1, amount: amt});
+          }
+        }
+      }
+      // Aggregate by month
+      const map = new Map();
+      for(const r of rowsData){
+        map.set(r.key, (map.get(r.key)||0) + r.amount);
+      }
+      const rows = [...map.entries()].map(([key, amt])=>{
+        const [y,m] = key.split('-').map(n=>parseInt(n,10));
+        const name = `${MONTHS_FR[m-1]} ${y}`;
+        return {key, y, m, name, amount: amt};
+      }).sort((a,b)=> (b.y - a.y) || (b.m - a.m));
+      return rows;
+    }catch(err){
+      console.error('monthlyEarnings error', err);
+      return [];
+    }
+  }
+function renderMonthlyPanel(){
+    const list = $('#monthlyList'); if(!list) return;
+    const rows = monthlyEarnings();
+    list.innerHTML = '';
+    if(rows.length === 0){
+      const li = document.createElement('li');
+      li.className = 'month-item';
+      li.innerHTML = `<span class="m-name">—</span><span class="m-amt">0 DH</span>`;
+      list.appendChild(li);
+      return;
+    }
+    // Summary (total of all months)
+    let total = 0;
+    for(const r of rows){ total += (r.amount||0); }
+
+    let summary = document.getElementById('monthlySummary');
+    if(!summary){
+      summary = document.createElement('div');
+      summary.id = 'monthlySummary';
+      summary.className = 'monthly-summary';
+      const panel = document.getElementById('monthlyPanel');
+      panel?.insertBefore(summary, list);
+    }
+    summary.innerHTML = `<span class="title">Total des profits</span><span class="value">${total} DH</span>`;
+
+    for(const r of rows){
+      const li = document.createElement('li');
+      li.className = 'month-item';
+      const cls = (r.amount >= 0) ? 'pos' : 'neg';
+      li.innerHTML = `<span class="m-name">${r.name}</span><span class="m-amt ${cls}">${r.amount} DH</span>`;
+      list.appendChild(li);
+    }
+  }
+
+  function toggleMonthly(open){
+    const panel = $('#monthlyPanel'); if(!panel) return;
+    if(open){
+      renderMonthlyPanel();
+      panel.style.display = 'flex';
+      panel.setAttribute('aria-hidden','false');
+    } else {
+      panel.style.display = 'none';
+      panel.setAttribute('aria-hidden','true');
+    }
+  }
+
+  // Hook up events once DOM is ready
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const btn = document.getElementById('btnMonthly');
+    const closeBtn = document.getElementById('closeMonthly');
+    if(btn){
+  btn.addEventListener('click', ()=>{
+    const panel = document.getElementById('monthlyPanel');
+    const isOpen = panel && panel.getAttribute('aria-hidden') === 'false';
+    toggleMonthly(!isOpen);
+  });
+}
+    if(closeBtn){ closeBtn.addEventListener('click', ()=> toggleMonthly(false)); }
+
+    // Close when clicking outside
+    window.addEventListener('click', (e)=>{
+      const p = document.getElementById('monthlyPanel');
+      if(!p || p.getAttribute('aria-hidden')==='true') return;
+      if(p.contains(e.target) || e.target===btn) return;
+      toggleMonthly(false);
+    });
+  });
+})();
+</script>
+<script>
+(function(){
+  const userInput = document.getElementById('authUser');
+  const passInput = document.getElementById('authPass');
+  const loginBtn  = document.getElementById('btnLogin');
+  function hookEnter(el){
+    if(!el) return;
+    el.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        if(loginBtn) loginBtn.click();
+      }
+    });
+  }
+  hookEnter(userInput);
+  hookEnter(passInput);
+})();
+</script>
+<script>
+(function(){
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const toolsOverlay = document.getElementById('toolsOverlay');
+  const settingsCard = document.getElementById('settingsCard');
+  const settingsMount = document.getElementById('settingsMount');
+  const closeSettings = document.getElementById('closeSettings');
+  const closeTools = document.getElementById('closeTools');
+  const btnSettings = document.getElementById('btnSettings');
+  const btnTools = document.getElementById('btnTools');
+  const toolsMenu = document.getElementById('toolsMenu');
+
+  const placeholder = document.createElement('div');
+  placeholder.id = 'settingsPlaceholder';
+  settingsCard?.parentNode?.insertBefore(placeholder, settingsCard.nextSibling);
+
+  function openSettings(){
+    if(!settingsOverlay || !settingsCard || !settingsMount) return;
+    settingsMount.appendChild(settingsCard);
+    settingsCard.classList.remove('hidden');
+    settingsOverlay.style.display = 'flex';
+    settingsOverlay.setAttribute('aria-hidden','false');
+  }
+  function closeSettingsPopup(){
+    if(!settingsOverlay || !settingsCard || !placeholder) return;
+    settingsOverlay.style.display = 'none';
+    settingsOverlay.setAttribute('aria-hidden','true');
+    placeholder.parentNode?.insertBefore(settingsCard, placeholder);
+    settingsCard.classList.add('hidden');
+  }
+  function openTools(){
+    if(toolsMenu){ toolsMenu.style.display = 'none'; toolsMenu.setAttribute('aria-hidden','true'); }
+    toolsOverlay.style.display = 'flex';
+    toolsOverlay.setAttribute('aria-hidden','false');
+  }
+  function closeToolsPopup(){
+    toolsOverlay.style.display = 'none';
+    toolsOverlay.setAttribute('aria-hidden','true');
+  }
+  btnSettings?.addEventListener('click', (e)=>{ e.preventDefault(); openSettings(); });
+  btnTools?.addEventListener('click', (e)=>{ e.preventDefault(); openTools(); });
+  closeSettings?.addEventListener('click', closeSettingsPopup);
+  closeTools?.addEventListener('click', closeToolsPopup);
+  settingsOverlay?.addEventListener('click', (e)=>{ if(e.target === settingsOverlay) closeSettingsPopup(); });
+  toolsOverlay?.addEventListener('click', (e)=>{ if(e.target === toolsOverlay) closeToolsPopup(); });
+  window.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){
+      if(settingsOverlay?.style.display === 'flex') closeSettingsPopup();
+      if(toolsOverlay?.style.display === 'flex') closeToolsPopup();
+    }
+  });
+
+  // Save button with toast
+  const btnSaveSettings = document.getElementById('btnSaveSettings');
+  const toast = document.getElementById('settingsToast');
+  btnSaveSettings?.addEventListener('click', ()=>{
+    try{
+      if(typeof saveUserData === 'function'){ saveUserData(); }
+      const old = btnSaveSettings.textContent;
+      btnSaveSettings.textContent = 'Saved ✓';
+      setTimeout(()=> btnSaveSettings.textContent = old, 1200);
+      if (toast){
+        toast.style.display = 'inline-block';
+        setTimeout(()=>{ toast.style.display = 'none'; }, 1400);
+      }
+    }catch(err){
+      alert('Erreur lors de l\'enregistrement');
+    }
+  });
+
+  // Persist 'Paiement Par' select
+  // live update for country input
+  document.addEventListener('input', (e)=>{
+    const t = e.target;
+    if(t && t.classList && t.classList.contains('country-input')){
+      const id = t.dataset.id;
+      const c = state.clients.find(x=> x.id === id);
+      if(c){ c.country = t.value.trim(); saveUserData(); }
+    }
+  });
+  document.addEventListener('change', (e)=>{
+  const t = e.target;
+  // inline country editor (on change)
+  if(t && t.classList && t.classList.contains('country-input')){
+    const id = t.dataset.id;
+    const c = state.clients.find(x=> x.id === id);
+    if(c){ c.country = t.value.trim(); saveUserData(); }
+  }
+  // Paiement Par select
+  if(t && t.classList && t.classList.contains('pay-select')){
+    const id = t.dataset.id;
+    const c = state.clients.find(x=> x.id === id);
+    if(c){ c.paiement = t.value; saveUserData(); }
+  }
+  // Type select -> recompute end date
+  if(t && t.classList && t.classList.contains('type-select')){
+    const id = t.dataset.id;
+    const c = state.clients.find(x=> x.id === id);
+    if(c){
+      c.type = t.value;
+      c.end = computeEnd(c.start, c.type);
+      saveUserData();
+      render();
+    }
+  }
+  // Device select
+  if(t && t.classList && t.classList.contains('device-select')){
+    const id = t.dataset.id;
+    const c = state.clients.find(x=> x.id === id);
+    if(c){ c.device = t.value; saveUserData(); }
+  }
+});
+document.getElementById('toolsExport')?.addEventListener('click', ()=>{
+  const data = { 
+    user: state.user, 
+    clients: state.clients, 
+    credits: state.credits, 
+    cost: state.cost, 
+    price: state.price, 
+    saleDefault: state.saleDefault 
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); 
+  a.href = URL.createObjectURL(blob); 
+  a.download = `iptv_${state.user}_backup_${new Date().toISOString().slice(0,10)}.json`; 
+  a.click();
+});
+
+document.getElementById('toolsImport')?.addEventListener('click', ()=>{
+  document.getElementById('fileImport')?.click();
+});
+
+document.getElementById('toolsReset')?.addEventListener('click', ()=>{
+  if(confirm('Tout supprimer pour ce compte ?')){
+    const keys = userKeys();
+    localStorage.removeItem(keys.LS_CLIENTS);
+    localStorage.removeItem(keys.LS_CREDITS);
+    localStorage.removeItem(keys.LS_COST);
+    localStorage.removeItem(keys.LS_PRICE);
+    localStorage.removeItem(keys.LS_SALE);
+    loadUserData(); render(); alert('Réinitialisé ✓');
+  }
+});
+
+</script>
+<script>
+// === Rewired Add Client Modal Logic (robust) ===
+(function(){
+  const openBtn = document.getElementById('btnAddClientOpen');
+  const modal = document.getElementById('addClientModal');
+  const closeBtn = document.getElementById('btnModalClose');
+  const addBtn = document.getElementById('btnModalAdd');
+
+  // modal fields
+  const m_name = document.getElementById('m_name');
+  const m_username = document.getElementById('m_username');
+  const m_mac = document.getElementById('m_mac');
+  const m_start = document.getElementById('m_start');
+  const m_type = document.getElementById('m_type');
+  const m_sale = document.getElementById('m_sale');
+
+  // hidden/original form fields used by addClient()
+  const f_name = document.getElementById('name');
+  const f_username = document.getElementById('username');
+  const f_mac = document.getElementById('mac');
+  const f_start = document.getElementById('start');
+  const f_type = document.getElementById('type');
+  const f_sale = document.getElementById('sale');
+
+  function openModal(){
+    if(!modal) return;
+    // prefill start with today
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    if(m_start) m_start.value = `${yyyy}-${mm}-${dd}`;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
+    m_name && m_name.focus();
+  }
+  function closeModal(){
+    if(!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+  }
+
+  openBtn && openBtn.addEventListener('click', openModal);
+  closeBtn && closeBtn.addEventListener('click', closeModal);
+  modal && modal.addEventListener('click', (e)=>{ if(e.target === modal) closeModal(); });
+  window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && modal?.style.display === 'flex') closeModal(); });
+
+  addBtn && addBtn.addEventListener('click', ()=>{
+    // Copy values
+    if(f_name) f_name.value = (m_name?.value || '').trim();
+    if(f_username) f_username.value = (m_username?.value || '').trim();
+    if(f_mac) f_mac.value = (m_mac?.value || '').trim();
+    if(f_start) f_start.value = (m_start?.value || '');
+    if(f_type) f_type.value = (m_type?.value || '1y');
+    if(f_sale) f_sale.value = (m_sale?.value || '');
+
+    const f_device = document.getElementById('device');
+const m_device = document.getElementById('m_device');
+if (f_device) f_device.value = (m_device?.value || 'Eagle Pro (code)');
+const f_country = document.getElementById('country');
+const m_country = document.getElementById('m_country');
+if (f_country) f_country.value = (m_country?.value || '');
+const f_paiement = document.getElementById('paiement');
+const m_paiement = document.getElementById('m_paiement');
+if (f_paiement) f_paiement.value = (m_paiement?.value || 'Espece');
+// Call addClient() directly
+    try{
+      if(typeof addClient === 'function'){ addClient(); }
+      closeModal();
+    }catch(err){
+      console.error('addClient error', err);
+    }
+  });
+})();
+</script>
+<script>
+// === Edit Client Modal Logic ===
+(function(){
+  const modal = document.getElementById('editClientModal');
+  const closeBtn = document.getElementById('btnEditClose');
+  const saveBtn = document.getElementById('btnEditSave');
+
+  function openEdit(c){
+    if(!modal) return;
+    const e_name = document.getElementById('e_name');
+    const e_username = document.getElementById('e_username');
+    const e_mac = document.getElementById('e_mac');
+    const e_country = document.getElementById('e_country');
+    const e_device = document.getElementById('e_device');
+    const e_paiement = document.getElementById('e_paiement');
+    const e_start = document.getElementById('e_start');
+    const e_type = document.getElementById('e_type');
+    const e_sale = document.getElementById('e_sale');
+
+    if(e_name) e_name.value = c.name || '';
+    if(e_username) e_username.value = c.username || c.code || '';
+    if(e_mac) e_mac.value = c.mac || '';
+    if(e_country) e_country.value = c.country || '';
+    if(e_device) e_device.value = c.device || 'Eagle Pro (code)';
+    if(e_paiement) e_paiement.value = c.paiement || 'Espece';
+    if(e_start) e_start.value = c.start || '';
+    if(e_type) e_type.value = c.type || '1y';
+    if(e_sale) e_sale.value = (typeof c.sale==='number' ? c.sale : (window.state?.saleDefault ?? 300));
+
+    modal.dataset.id = c.id;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
+    e_name && e_name.focus();
+  }
+  function closeEdit(){
+    if(!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden','true');
+    modal.removeAttribute('data-id');
+  }
+
+  // open from table action
+  document.addEventListener('click', (e)=>{
+    const t = e.target;
+    if(t && t.dataset && t.dataset.act === 'edit'){
+      const id = t.dataset.id;
+      const c = state.clients.find(x=> x.id === id);
+      if(c){ openEdit(c); }
+    }
+  });
+
+  saveBtn && saveBtn.addEventListener('click', ()=>{
+    const id = modal?.dataset?.id;
+    if(!id) return closeEdit();
+    const c = state.clients.find(x=> x.id === id);
+    if(!c) return closeEdit();
+
+    const e_name = document.getElementById('e_name');
+    const e_username = document.getElementById('e_username');
+    const e_mac = document.getElementById('e_mac');
+    const e_country = document.getElementById('e_country');
+    const e_device = document.getElementById('e_device');
+    const e_paiement = document.getElementById('e_paiement');
+    const e_start = document.getElementById('e_start');
+    const e_type = document.getElementById('e_type');
+    const e_sale = document.getElementById('e_sale');
+
+    c.name = (e_name?.value || '').trim();
+    c.username = (e_username?.value || '').trim();
+    c.code = c.username; // keep code == username convention
+    c.mac = (e_mac?.value || '').trim();
+    c.country = (e_country?.value || '').trim();
+    c.device = (e_device?.value || c.device || 'Eagle Pro (code)');
+    c.paiement = (e_paiement?.value || c.paiement || 'Espece');
+    c.start = (e_start?.value || c.start);
+    c.type  = (e_type?.value || c.type || '1y');
+    c.sale  = parseInt(e_sale?.value || c.sale || (window.state?.saleDefault ?? 300), 10);
+    c.end   = (typeof computeEnd==='function') ? computeEnd(c.start, c.type) : c.end;
+
+    saveUserData();
+    render();
+    closeEdit();
+  });
+
+  closeBtn && closeBtn.addEventListener('click', closeEdit);
+  modal && modal.addEventListener('click', (e)=>{ if(e.target === modal) closeEdit(); });
+  window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && modal?.style.display === 'flex') closeEdit(); });
+})();
+</script>
+
+<script>
+(function(){
+  function openSettingsPopup(){
+    try{
+      var settingsOverlay = document.getElementById('settingsOverlay');
+      var settingsCard = document.getElementById('settingsCard');
+      var settingsMount = document.getElementById('settingsMount');
+      if(settingsMount && settingsCard && settingsCard.parentNode !== settingsMount){
+        settingsMount.appendChild(settingsCard);
+      }
+      if(settingsCard){ settingsCard.classList.remove('hidden'); }
+      if(settingsOverlay){
+        settingsOverlay.style.display = 'flex';
+        settingsOverlay.setAttribute('aria-hidden','false');
+      }
+    }catch(e){ console.warn('settings popup error', e); }
+  }
+  function openToolsOverlay(){
+    var overlay = document.getElementById('toolsOverlay');
+    if(overlay){
+      overlay.style.display = 'flex';
+      overlay.setAttribute('aria-hidden','false');
+    } else {
+      var btnTools = document.getElementById('btnTools');
+      if(btnTools) btnTools.click();
+    }
+  }
+  function closeMobileMenu(){
+    var mm = document.getElementById('mobileMenu');
+    if(mm){ mm.classList.remove('show'); mm.setAttribute('aria-hidden','true'); }
+    var mt = document.getElementById('menuToggle');
+    if(mt){ mt.setAttribute('aria-expanded','false'); }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('menuToggle');
+    var menu = document.getElementById('mobileMenu');
+    var mobileAdd = document.getElementById('mobileAddClient');
+    var mobileTools = document.getElementById('mobileTools');
+    var mobileSettings = document.getElementById('mobileSettings');
+    var mobileLogout = document.getElementById('mobileLogout');
+
+    btn && btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var open = menu && menu.classList.contains('show');
+      if(menu){
+        if(open){ menu.classList.remove('show'); menu.setAttribute('aria-hidden','true'); btn.setAttribute('aria-expanded','false'); }
+        else { menu.classList.add('show'); menu.setAttribute('aria-hidden','false'); btn.setAttribute('aria-expanded','true'); }
+      }
+    });
+
+    mobileAdd && mobileAdd.addEventListener('click', function(){
+      var a = document.getElementById('btnAddClientOpen');
+      if(a) a.click();
+      closeMobileMenu();
+    });
+    mobileTools && mobileTools.addEventListener('click', function(){
+      openToolsOverlay();
+      closeMobileMenu();
+    });
+    mobileSettings && mobileSettings.addEventListener('click', function(){
+      openSettingsPopup();
+      closeMobileMenu();
+    });
+    mobileLogout && mobileLogout.addEventListener('click', function(e){
+      e.preventDefault();
+      var ok = confirm('Voulez-vous vraiment vous déconnecter ?');
+      if(ok){
+        if(typeof logout === 'function'){ try{ logout(); return; }catch(_){} }
+        var auth = document.getElementById('auth');
+        var app  = document.getElementById('app');
+        if(auth && app){
+          auth.classList.remove('hidden');
+          app.classList.add('hidden');
+          try{ localStorage.removeItem('iptv_current_user_v1'); }catch(_){}
+          return;
+        }
+        window.location.reload();
+      }
+    });
+
+    // Close on outside click
+    window.addEventListener('click', function(e){
+      if(!menu) return;
+      if(menu.classList.contains('show') && !menu.contains(e.target) && e.target !== btn){
+        closeMobileMenu();
+      }
+    });
+    // Esc to close
+    window.addEventListener('keydown', function(e){
+      if(e.key === 'Escape') closeMobileMenu();
+    });
+  });
+})();
+</script>
+
+
+<script>
+// === Settings popup actions: close + save ===
+document.addEventListener('DOMContentLoaded', function(){
+  const closeBtn = document.getElementById('closeSettings');
+  const saveBtn = document.getElementById('btnSaveSettings');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+
+  function closeSettings(){
+    if (settingsOverlay){
+      settingsOverlay.style.display = 'none';
+      settingsOverlay.setAttribute('aria-hidden','true');
+    }
+  }
+
+  if (closeBtn && !closeBtn.__bound){
+    closeBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      closeSettings();
+    });
+    closeBtn.__bound = true;
+  }
+
+  if (saveBtn && !saveBtn.__bound){
+    saveBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      try {
+        const credits = document.getElementById('inputCredits')?.value || 0;
+        const cost    = document.getElementById('inputCost')?.value || 0;
+        const price   = document.getElementById('inputPrice')?.value || 0;
+        const sale    = document.getElementById('inputSale')?.value || 0;
+
+        const settings = { 
+          credits: Number(credits), 
+          cost: Number(cost), 
+          price: Number(price), 
+          sale: Number(sale) 
+        };
+        localStorage.setItem("iptv_settings", JSON.stringify(settings));
+
+        alert("Paramètres enregistrés ✅");
+        closeSettings();
+        // Optionally, update UI/state if app provides functions
+        if (typeof loadUserData === 'function') { try { loadUserData(); } catch(_){} }
+        if (typeof render === 'function') { try { render(); } catch(_){} }
+      } catch(err){
+        console.error(err);
+        alert("Erreur lors de l'enregistrement !");
+      }
+    });
+    saveBtn.__bound = true;
+  }
+});
+</script>
+
+
+<script>
+// === Robust Tools Actions (Export / Import / Reset) ===
+document.addEventListener('DOMContentLoaded', function(){
+  const btnExport = document.getElementById('toolsExport');
+  const btnImport = document.getElementById('toolsImport');
+  const btnReset  = document.getElementById('toolsReset');
+  const fileInput = document.getElementById('fileImport');
+
+  function getKeys(){
+    try{
+      if (typeof userKeys === 'function') return userKeys();
+    }catch(_){}
+    // Fallback keys
+    return {
+      LS_CLIENTS: 'iptv_clients',
+      LS_CREDITS: 'iptv_credits',
+      LS_COST: 'iptv_cost',
+      LS_PRICE: 'iptv_price',
+      LS_SALE: 'iptv_saleDefault',
+      LS_USER: 'iptv_current_user_v1'
+    };
+  }
+
+  function exportData(){
+    const keys = getKeys();
+    let data = {};
+    try{
+      // Prefer in-memory state if present
+      if (window.state){
+        data = {
+          user:  state.user ?? null,
+          clients: state.clients ?? [],
+          credits: state.credits ?? 0,
+          cost: state.cost ?? 0,
+          price: state.price ?? 0,
+          saleDefault: state.saleDefault ?? 0
+        };
+      } else {
+        // Fallback to localStorage
+        data = {
+          user:  localStorage.getItem(keys.LS_USER),
+          clients: JSON.parse(localStorage.getItem(keys.LS_CLIENTS) || '[]'),
+          credits: Number(localStorage.getItem(keys.LS_CREDITS) || 0),
+          cost: Number(localStorage.getItem(keys.LS_COST) || 0),
+          price: Number(localStorage.getItem(keys.LS_PRICE) || 0),
+          saleDefault: Number(localStorage.getItem(keys.LS_SALE) || 0),
+        };
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const uname = (data && (data.user || 'user')) || 'user';
+      a.download = `iptv_${uname}_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }catch(err){
+      console.error(err);
+      alert('Export a échoué.');
+    }
+  }
+
+  function importData(file){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const obj = JSON.parse(e.target.result);
+        const keys = getKeys();
+        // Save to localStorage
+        if (obj.clients) localStorage.setItem(keys.LS_CLIENTS, JSON.stringify(obj.clients));
+        if ('credits' in obj) localStorage.setItem(keys.LS_CREDITS, Number(obj.credits));
+        if ('cost' in obj)    localStorage.setItem(keys.LS_COST, Number(obj.cost));
+        if ('price' in obj)   localStorage.setItem(keys.LS_PRICE, Number(obj.price));
+        if ('saleDefault' in obj) localStorage.setItem(keys.LS_SALE, Number(obj.saleDefault));
+        if ('user' in obj && obj.user) localStorage.setItem(keys.LS_USER, obj.user);
+
+        // Try to push into in-memory state if available
+        if (window.state){
+          if (obj.clients) state.clients = obj.clients;
+          if ('credits' in obj) state.credits = Number(obj.credits);
+          if ('cost' in obj) state.cost = Number(obj.cost);
+          if ('price' in obj) state.price = Number(obj.price);
+          if ('saleDefault' in obj) state.saleDefault = Number(obj.saleDefault);
+          if ('user' in obj && obj.user) state.user = obj.user;
+        }
+
+        // Re-render if app provides methods
+        if (typeof loadUserData === 'function') try{ loadUserData(); }catch(e){}
+        if (typeof render === 'function') try{ render(); }catch(e){}
+
+        alert('Import effectué ✅');
+      }catch(err){
+        console.error(err);
+        alert('Fichier invalide.');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function resetData(){
+    if (!confirm('Tout supprimer pour ce compte ?')) return;
+    const keys = getKeys();
+    try{
+      localStorage.removeItem(keys.LS_CLIENTS);
+      localStorage.removeItem(keys.LS_CREDITS);
+      localStorage.removeItem(keys.LS_COST);
+      localStorage.removeItem(keys.LS_PRICE);
+      localStorage.removeItem(keys.LS_SALE);
+      // Ne supprimez pas l'utilisateur par défaut إلا إذا بغيتي
+      // localStorage.removeItem(keys.LS_USER);
+
+      if (window.state){
+        state.clients = [];
+        state.credits = 0;
+        state.cost = 0;
+        state.price = 0;
+        state.saleDefault = 0;
+      }
+
+      if (typeof loadUserData === 'function') try{ loadUserData(); }catch(e){}
+      if (typeof render === 'function') try{ render(); }catch(e){}
+
+      alert('Réinitialisé ✓');
+    }catch(err){
+      console.error(err);
+      alert('Reset a échoué.');
+    }
+  }
+
+  if (btnExport && !btnExport.__bound){ btnExport.addEventListener('click', function(e){ e.preventDefault(); exportData(); }); btnExport.__bound = true; }
+  if (btnImport && !btnImport.__bound){ btnImport.addEventListener('click', function(e){ e.preventDefault(); if(fileInput) fileInput.click(); }); btnImport.__bound = true; }
+  if (fileInput && !fileInput.__bound){ fileInput.addEventListener('change', function(){ if(this.files && this.files[0]) importData(this.files[0]); this.value = ''; }); fileInput.__bound = true; }
+  if (btnReset && !btnReset.__bound){ btnReset.addEventListener('click', function(e){ e.preventDefault(); resetData(); }); btnReset.__bound = true; }
+});
+</script>
+
+
+<script>
+// === Close Tools Overlay with × button ===
+document.addEventListener('DOMContentLoaded', function(){
+  const closeBtn = document.getElementById('closeTools');
+  const toolsOverlay = document.getElementById('toolsOverlay');
+
+  if (closeBtn && toolsOverlay && !closeBtn.__bound){
+    closeBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      toolsOverlay.style.display = 'none';
+      toolsOverlay.setAttribute('aria-hidden','true');
+    });
+    closeBtn.__bound = true;
+  }
+});
+</script>
+
+
+<script>
+// === Desktop Settings (⚙️) opens same popup as mobile ===
+document.addEventListener('DOMContentLoaded', function(){
+  const btnSettings = document.getElementById('btnSettings');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const settingsCard = document.getElementById('settingsCard');
+  const settingsMount = document.getElementById('settingsMount');
+
+  function openSettings(){
+    try {
+      if (settingsMount && settingsCard && settingsCard.parentNode !== settingsMount){
+        settingsMount.appendChild(settingsCard);
+      }
+      if (settingsCard){ settingsCard.classList.remove('hidden'); }
+      if (settingsOverlay){
+        settingsOverlay.style.display = 'flex';
+        settingsOverlay.setAttribute('aria-hidden','false');
+      }
+    } catch(e){
+      console.warn('openSettings error', e);
+    }
+  }
+
+  if (btnSettings && !btnSettings.__bound){
+    btnSettings.addEventListener('click', function(e){
+      e.preventDefault();
+      openSettings();
+    }, true);
+    btnSettings.__bound = true;
+  }
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var settingsOverlay = document.getElementById('settingsOverlay');
+  var settingsCard = document.getElementById('settingsCard');
+  var settingsMount = document.getElementById('settingsMount');
+  var closeSettings = document.getElementById('closeSettings');
+  var saveBtn = document.getElementById('btnSaveSettings');
+  var btnSettings = document.getElementById('btnSettings');
+  var mobileSettings = document.getElementById('mobileSettings');
+
+  function openSettings(){
+    if (settingsMount && settingsCard && settingsCard.parentNode !== settingsMount){
+      settingsMount.appendChild(settingsCard);
+    }
+    if (settingsCard) settingsCard.classList.remove('hidden');
+    if (settingsOverlay){
+      settingsOverlay.style.display = 'flex';
+      settingsOverlay.setAttribute('aria-hidden','false');
+    }
+  }
+  function closeSettingsFn(){
+    if (settingsOverlay){
+      settingsOverlay.style.display = 'none';
+      settingsOverlay.setAttribute('aria-hidden','true');
+    }
+  }
+
+  if (btnSettings && !btnSettings.__openBound){
+    btnSettings.addEventListener('click', function(e){ e.preventDefault(); openSettings(); });
+    btnSettings.__openBound = true;
+  }
+  if (mobileSettings && !mobileSettings.__openBound){
+    mobileSettings.addEventListener('click', function(e){ e.preventDefault(); openSettings(); });
+    mobileSettings.__openBound = true;
+  }
+  if (closeSettings && !closeSettings.__closeBound){
+    closeSettings.addEventListener('click', function(e){ e.preventDefault(); closeSettingsFn(); });
+    closeSettings.__closeBound = true;
+  }
+  if (settingsOverlay && !settingsOverlay.__backdropClose){
+    settingsOverlay.addEventListener('click', function(e){
+      if (e.target === settingsOverlay) closeSettingsFn();
+    });
+    settingsOverlay.__backdropClose = true;
+  }
+  if (saveBtn && !saveBtn.__saveBound){
+    saveBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      try {
+        var credits = document.getElementById('inputCredits')?.value || 0;
+        var cost    = document.getElementById('inputCost')?.value || 0;
+        var price   = document.getElementById('inputPrice')?.value || 0;
+        var sale    = document.getElementById('inputSale')?.value || 0;
+        var settings = { credits: Number(credits), cost: Number(cost), price: Number(price), sale: Number(sale) };
+        localStorage.setItem("iptv_settings", JSON.stringify(settings));
+        alert("Paramètres enregistrés ✅");
+        if (typeof render === 'function') try{ render(); }catch(_){}
+        closeSettingsFn();
+      } catch(err){
+        console.error(err);
+        alert("Erreur lors de l'enregistrement !");
+      }
+    });
+    saveBtn.__saveBound = true;
+  }
+});
+</script>
+
+
+<script>
+// === Row Actions Dropdown Logic ===
+(function(){
+  // Close all dropdowns helper
+  function closeAll(){
+    document.querySelectorAll('.actions-dropdown.open').forEach(d=> d.classList.remove('open'));
+    document.querySelectorAll('.actions-menu').forEach(m=> m.classList.add('hidden'));
+  }
+  // Delegate clicks
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('.actions-btn');
+    const isInsideDropdown = !!e.target.closest('.actions-dropdown');
+    // Toggle on button click
+    if(btn){
+      e.preventDefault();
+      const dd = btn.closest('.actions-dropdown');
+      const menu = dd?.querySelector('.actions-menu');
+      const willOpen = !dd.classList.contains('open');
+      closeAll();
+      if(willOpen){
+        dd.classList.add('open');
+        menu?.classList.remove('hidden');
+      }
+      return;
+    }
+    // Close if clicking outside any dropdown
+    if(!isInsideDropdown){
+      closeAll();
+    }
+  }, true);
+
+  // Also close on Escape
+  window.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ closeAll(); }
+  });
+
+  // Re-close dropdowns after any action (edit/toggle/del) to keep UX clean
+  document.addEventListener('click', function(e){
+    const act = e.target?.dataset?.act;
+    if(act==='edit' || act==='toggle' || act==='del'){
+      closeAll();
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
