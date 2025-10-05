@@ -6279,6 +6279,42 @@ const gainEl = document.getElementById('gainTotal');
 </script>
 <!-- === /Ensure all client mutations save to Firestore === -->
 <script type="module" src="./firebase_bootstrap.js?v=1"></script>
+<script type="module">
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  const auth = getAuth();
+
+  // نحفظ معلومات الدخول بعد أول login
+  if (window.CloudAuth) {
+    const _login = CloudAuth.login;
+    CloudAuth.login = async (email, pass) => {
+      localStorage.setItem("lastUserCreds", JSON.stringify({email, pass}));
+      return _login(email, pass);
+    };
+  }
+
+  // نراقب الحالة ديال المستخدم
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      console.warn("⚠️ No user logged in, trying auto login...");
+      const saved = localStorage.getItem("lastUserCreds");
+      if (saved) {
+        const { email, pass } = JSON.parse(saved);
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+          console.log("🔄 Auto login success for", email);
+        } catch (err) {
+          console.error("Auto login failed:", err.message);
+        }
+      } else {
+        console.log("No saved credentials.");
+      }
+    } else {
+      console.log("✅ Authenticated as", user.email);
+    }
+  });
+</script>
+
+    
 </body>
 </html>
 
