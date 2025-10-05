@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPTV Manager — Firebase Cloud (Inline)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Noto Sans",sans-serif;background:#0b0b0e;color:#eee;margin:0}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#121219;border-bottom:1px solid #1e1e2a;position:sticky;top:0}
+    h1{font-size:16px;margin:0}
+    .pill{background:#1d2736;border:1px solid #2b3a52;color:#a9c1ff;padding:6px 10px;border-radius:999px;font-size:12px}
+    .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
+    .card{background:#13151d;border:1px solid #23263a;border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 2px 16px rgba(0,0,0,.15)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row>.col{flex:1 1 220px}
+    input,button{font-size:14px;border-radius:10px;border:1px solid #2b2f45;background:#0f1118;color:#e9ecff;padding:10px 12px;outline:none}
+    input:focus{border-color:#5f8bff;box-shadow:0 0 0 3px rgba(95,139,255,.15)}
+    button{cursor:pointer;background:#2140ff;border:1px solid #3350ff}
+    button.gray{background:#1a1d2b;border:1px solid #2b2f45}
+    .hidden{display:none !important}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #23263a;padding:10px;text-align:right}
+    .ok{color:#6cf36f}
+    .ko{color:#ff6d6d}
+    small.mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:#9fb0ff}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IPTV Manager <span class="pill">Firebase Cloud</span></h1>
+    <div id="who" class="pill">غير مسجل</div>
+  </header>
+
+  <div class="wrap">
+    <!-- Auth Panel -->
+    <div id="auth" class="card">
+      <h3>تسجيل الدخول</h3>
+      <div class="row">
+        <div class="col"><input id="email" type="email" placeholder="Email" /></div>
+        <div class="col"><input id="pass"  type="password" placeholder="Password" /></div>
+        <div class="col"><button id="btnLogin">Login</button></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="col"><input id="email2" type="email" placeholder="Email (Signup)" /></div>
+        <div class="col"><input id="pass2"  type="password" placeholder="Password (Signup)" /></div>
+        <div class="col"><input id="pass3"  type="password" placeholder="Confirm Password" /></div>
+        <div class="col"><button id="btnSignup" class="gray">Create Account</button></div>
+      </div>
+      <div style="margin-top:8px"><small id="authMsg" class="mono"></small></div>
+    </div>
+
+    <!-- App Panel -->
+    <div id="app" class="card hidden">
+      <div class="row" style="align-items:center">
+        <div class="col">
+          <div class="row">
+            <div class="col"><label>Credits</label><input id="inputCredits" type="number" value="500"></div>
+            <div class="col"><label>Cost</label><input id="inputCost" type="number" value="12"></div>
+            <div class="col"><label>Price</label><input id="inputPrice" type="number" value="60"></div>
+            <div class="col"><label>Sale Default</label><input id="inputSale" type="number" value="300"></div>
+          </div>
+        </div>
+        <div class="col" style="text-align:left">
+          <button id="btnLogout" class="gray">Logout</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="row" style="align-items:center">
+          <div class="col"><input id="name" placeholder="Client name"></div>
+          <div class="col"><input id="mac" placeholder="MAC e.g. 11:22:33:44"></div>
+          <div class="col"><button id="add">+ Add Client</button></div>
+          <div class="col"><button id="save" class="gray">💾 Save Now</button></div>
+        </div>
+        <div id="saveMsg" style="margin-top:6px"><small class="mono"></small></div>
+      </div>
+
+      <div class="card">
+        <table>
+          <thead><tr><th>الاسم</th><th>MAC</th><th>Paid</th><th>Actions</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase + Cloud (Inline) -->
+  <script type="module">
+    // Firebase SDK (CDN ESM)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // Config (provided)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAGmLhAfYeZSuUQACpfEwm3kxxo0waWXNE",
+      authDomain: "iptv-manager-71684.firebaseapp.com",
+      projectId: "iptv-manager-71684",
+      storageBucket: "iptv-manager-71684.firebasestorage.app",
+      messagingSenderId: "135610126019",
+      appId: "1:135610126019:web:590c90e00d1d19976adc76",
+      measurementId: "G-8K905NM0WB"
+    };
+
+    // Init
+    const app = initializeApp(firebaseConfig);
+    try { getAnalytics(app); } catch (_) {}
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // Global Cloud API
+    const CloudState = { uid:null, settings:{credits:500,cost:12,price:60,saleDefault:300}, clients:[] };
+    const U = (uid)=> doc(db,"users",uid);
+    const C = (uid)=> doc(db,"users",uid,"data","clients");
+
+    const CloudAuth = {
+      async signup(email, pass){
+        const cred = await createUserWithEmailAndPassword(auth,email,pass);
+        await setDoc(U(cred.user.uid), CloudState.settings, { merge:true });
+        return cred.user;
+      },
+      async login(email, pass){
+        const cred = await signInWithEmailAndPassword(auth,email,pass);
+        return cred.user;
+      },
+      async logout(){ await signOut(auth); },
+      onAuth(cb){ return onAuthStateChanged(auth, cb); }
+    };
+
+    const CloudStore = {
+      async loadAll(){
+        if(!CloudState.uid) return;
+        const u = await getDoc(U(CloudState.uid));
+        if(u.exists()){
+          const d=u.data()||{};
+          CloudState.settings = {
+            credits: typeof d.credits==='number'?d.credits:500,
+            cost: typeof d.cost==='number'?d.cost:12,
+            price: typeof d.price==='number'?d.price:60,
+            saleDefault: typeof d.saleDefault==='number'?d.saleDefault:300
+          };
+        }
+        const c = await getDoc(C(CloudState.uid));
+        CloudState.clients = c.exists() && Array.isArray(c.data()?.list) ? c.data().list : [];
+      },
+      onClients(cb){
+        if(!CloudState.uid) return ()=>{};
+        return onSnapshot(C(CloudState.uid),(snap)=>{
+          const d=snap.data();
+          if(d && Array.isArray(d.list)){
+            CloudState.clients=d.list;
+            cb(d.list);
+          }
+        });
+      },
+      async saveSettings(s){
+        if(!CloudState.uid) throw new Error("Not authenticated");
+        CloudState.settings = { ...CloudState.settings, ...s };
+        await setDoc(U(CloudState.uid), CloudState.settings, { merge:true });
+      },
+      async saveClients(list){
+        if(!CloudState.uid) throw new Error("Not authenticated");
+        CloudState.clients = Array.isArray(list)?list:[];
+        await setDoc(C(CloudState.uid), { list: CloudState.clients }, { merge:true });
+      }
+    };
+
+    // Expose for your old app (optional)
+    window.CloudState = CloudState;
+    window.CloudAuth  = CloudAuth;
+    window.CloudStore = CloudStore;
+
+    // Auto-login after first manual login
+    CloudAuth.onAuth(async (user)=>{
+      const who = document.getElementById('who');
+      if(!user){
+        document.getElementById('auth').classList.remove('hidden');
+        document.getElementById('app').classList.add('hidden');
+        if(who) who.textContent = "غير مسجل";
+        CloudState.uid=null;
+        return;
+      }
+      CloudState.uid = user.uid;
+      if(who) who.textContent = user.email || user.uid;
+      await CloudStore.loadAll();
+      paintFromState();
+      subscribeRealtime();
+      document.getElementById('auth').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+    });
+
+    // Save creds for auto-login
+    const loginBtn  = document.getElementById('btnLogin');
+    const signupBtn = document.getElementById('btnSignup');
+    const logoutBtn = document.getElementById('btnLogout');
+    const authMsg   = document.getElementById('authMsg');
+
+    loginBtn.onclick = async ()=>{
+      try{
+        const email = document.getElementById('email').value.trim();
+        const pass  = document.getElementById('pass').value;
+        localStorage.setItem("lastUserCreds", JSON.stringify({email, pass}));
+        await CloudAuth.login(email, pass);
+        authMsg.textContent = "";
+      }catch(e){ authMsg.textContent = e.message; }
+    };
+    signupBtn.onclick = async ()=>{
+      try{
+        const email = document.getElementById('email2').value.trim();
+        const p1    = document.getElementById('pass2').value;
+        const p2    = document.getElementById('pass3').value;
+        if(p1!==p2) throw new Error("Passwords mismatch");
+        localStorage.setItem("lastUserCreds", JSON.stringify({email, pass:p1}));
+        await CloudAuth.signup(email, p1);
+        authMsg.textContent = "✅ تم إنشاء الحساب";
+      }catch(e){ authMsg.textContent = e.message; }
+    };
+    logoutBtn.onclick = async ()=>{ await CloudAuth.logout(); };
+
+    // Force auto-login after reload if needed
+    onAuthStateChanged(auth, async (user)=>{
+      if(!user){
+        const saved = localStorage.getItem("lastUserCreds");
+        if(saved){
+          try{
+            const {email, pass} = JSON.parse(saved);
+            await signInWithEmailAndPassword(auth, email, pass);
+          }catch(e){ /* ignore */ }
+        }
+      }
+    });
+
+    // Simple demo app state (works even if your old app isn't present)
+    const state = window.state || { clients: [] , credits:500, cost:12, price:60, saleDefault:300 };
+    const tbody = document.getElementById('tbody');
+    const saveNow = document.getElementById('save');
+    const addBtn = document.getElementById('add');
+    const saveMsg = document.getElementById('saveMsg').querySelector('small');
+
+    function render(){
+      tbody.innerHTML = "";
+      state.clients.forEach((c,idx)=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td>${c.name||''}</td><td>${c.mac||''}</td><td>${c.paid?'✔️':'❌'}</td>
+          <td><button data-i="${idx}" class="gray _del">حذف</button></td>`;
+        tbody.appendChild(tr);
+      });
+      tbody.querySelectorAll('._del').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const i = Number(btn.getAttribute('data-i'));
+          state.clients.splice(i,1);
+          await persistAll();
+          render();
+        };
+      });
+    }
+    window.render = window.render || render;
+
+    function paintFromState(){
+      const $ = (id)=>document.getElementById(id);
+      $('inputCredits').value = CloudState.settings.credits;
+      $('inputCost').value    = CloudState.settings.cost;
+      $('inputPrice').value   = CloudState.settings.price;
+      $('inputSale').value    = CloudState.settings.saleDefault;
+      state.credits = CloudState.settings.credits;
+      state.cost    = CloudState.settings.cost;
+      state.price   = CloudState.settings.price;
+      state.saleDefault = CloudState.settings.saleDefault;
+      state.clients = [...CloudState.clients];
+      render();
+    }
+
+    async function persistAll(){
+      try{
+        CloudState.settings = {
+          credits:Number(document.getElementById('inputCredits').value||500),
+          cost:Number(document.getElementById('inputCost').value||12),
+          price:Number(document.getElementById('inputPrice').value||60),
+          saleDefault:Number(document.getElementById('inputSale').value||300),
+        };
+        await CloudStore.saveSettings(CloudState.settings);
+        await CloudStore.saveClients(state.clients);
+        saveMsg.textContent = "Saved ✓";
+        setTimeout(()=> saveMsg.textContent="", 1200);
+      }catch(e){
+        saveMsg.textContent = "Error: " + e.message;
+      }
+    }
+
+    saveNow.onclick = persistAll;
+    addBtn.onclick = async ()=>{
+      const name = document.getElementById('name').value.trim();
+      const mac  = document.getElementById('mac').value.trim();
+      if(!name && !mac) return;
+      state.clients.push({ name, mac, paid:false });
+      await persistAll();
+      render();
+      document.getElementById('name').value = "";
+      document.getElementById('mac').value  = "";
+    };
+
+    // Realtime clients sync
+    function subscribeRealtime(){
+      CloudStore.onClients((list)=>{
+        state.clients = [...list];
+        render();
+      });
+    }
+
+    // Inputs autosave
+    ['inputCredits','inputCost','inputPrice','inputSale'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener('input', ()=>{
+        state[id==='inputCredits'?'credits':id==='inputCost'?'cost':id==='inputPrice'?'price':'saleDefault'] = Number(el.value);
+      });
+    });
+
+  </script>
+</body>
+</html>
